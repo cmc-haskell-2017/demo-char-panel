@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveFunctor #-}
-module CharSelect.Form where
+module CharSelect.Panel where
 
 import Graphics.Gloss.Interface.Pure.Game
 import Data.Maybe (maybe)
@@ -18,15 +18,15 @@ data Selecter = Selecter (Maybe Int)
 
 type Fields = [(String, Field)]
 
-data Form a = Form
-  { formFields  :: Fields
-  , formValue   :: Fields -> Either String a
+data Panel a = Panel
+  { panelFields  :: Fields
+  , panelValue   :: Fields -> Either String a
   } deriving (Functor)
 
-instance Applicative Form where
-  pure x = Form [] (const (pure x))
+instance Applicative Panel where
+  pure x = Panel [] (const (pure x))
 
-  Form s1 v1 <*> Form s2 v2 = Form s v
+  Panel s1 v1 <*> Panel s2 v2 = Panel s v
     where
       s = s1 <> s2
       v xs = v1 xs <*> v2 xs
@@ -36,23 +36,23 @@ translateMouse dx dy (EventKey k ks m (x, y)) = (EventKey k ks m (x + dx, y + dy
 translateMouse dx dy (EventMotion (x, y)) = EventMotion (x + dx, y + dy)
 translateMouse _ _ e = e
 
-mkField :: String -> Field -> (Field -> Either String a) -> Form a
-mkField name field value = Form
-  { formFields = [(name, field)]
-  , formValue  = maybe (Left "no such field") value . lookup name
+mkField :: String -> Field -> (Field -> Either String a) -> Panel a
+mkField name field value = Panel
+  { panelFields = [(name, field)]
+  , panelValue  = maybe (Left "no such field") value . lookup name
   }
 
 toSlider :: Field -> Either String Slider
 toSlider (FieldSlider s) = Right s
 toSlider _ = Left "not a slider"
 
-slider :: String -> Form Float
+slider :: String -> Panel Float
 slider name = mkField name
   (FieldSlider (Slider 0 False))
   (fmap sliderValue . toSlider)
 
-drawForm :: Form a -> Picture
-drawForm form = pictures (zipWith drawFieldN [0..] (map snd (formFields form)))
+drawPanel :: Panel a -> Picture
+drawPanel panel = pictures (zipWith drawFieldN [0..] (map snd (panelFields panel)))
 
 drawFieldN :: Float -> Field -> Picture
 drawFieldN n = translate 0 (-fieldHeight * n) . drawField
@@ -61,9 +61,9 @@ drawField :: Field -> Picture
 drawField (FieldSlider s) = drawSlider s
 drawField (FieldSelecter _) = blank
 
-handleForm :: Event -> Form a -> Form a
-handleForm e form = form
-  { formFields = zipWith (fmap . handleFieldN e) [0..] (formFields form) }
+handlePanel :: Event -> Panel a -> Panel a
+handlePanel e panel = panel
+  { panelFields = zipWith (fmap . handleFieldN e) [0..] (panelFields panel) }
 
 handleFieldN :: Event -> Float -> Field -> Field
 handleFieldN e n = handleField (translateMouse 0 (fieldHeight * n) e)
