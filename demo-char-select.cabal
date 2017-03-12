@@ -14,7 +14,9 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     CharSelect
+  exposed-modules:
+    CharSelect
+    CharSelect.Form
   ghc-options:         -Wall
   build-depends:       base >= 4.7 && < 5
                      , gloss

@@ -2,6 +2,8 @@ module CharSelect where
 
 import Graphics.Gloss.Interface.Pure.Game
 
+import CharSelect.Form
+
 charSelectScreen :: IO ()
 charSelectScreen =
   play display bgColor fps initScreen drawScreen handleScreen updateScreen
@@ -10,16 +12,16 @@ charSelectScreen =
     bgColor = black   -- цвет фона
     fps     = 60      -- кол-во кадров в секунду
 
-data Screen = Screen
+type Screen = Form Float
 
 initScreen :: Screen
-initScreen = Screen
+initScreen = slider "ololo" <* slider "alala" <* slider "elele"
 
 drawScreen :: Screen -> Picture
-drawScreen _ = blank
+drawScreen = drawForm
 
 handleScreen :: Event -> Screen -> Screen
-handleScreen _ = id
+handleScreen = handleForm
 
 updateScreen :: Float -> Screen -> Screen
 updateScreen _ = id
