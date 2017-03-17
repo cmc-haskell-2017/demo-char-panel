@@ -15,7 +15,7 @@ charSelectScreen =
 type Screen = Panel Attrs
 
 initScreen :: Screen
-initScreen = attrs
+initScreen = validatePanel ((< 10) . attrsTotal) attrs
 
 data Attrs = Attrs
   { attrStrength  :: Int
@@ -23,6 +23,9 @@ data Attrs = Attrs
   , attrVitality  :: Int
   , attrEnergy    :: Int
   }
+
+attrsTotal :: Attrs -> Int
+attrsTotal (Attrs s d v e) = s + d + v + e
 
 attrs :: Panel Attrs
 attrs = Attrs

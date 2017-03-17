@@ -84,8 +84,18 @@ drawField (FieldSlider s) = drawSlider s
 drawField (FieldSelecter _) = blank
 
 handlePanel :: Event -> Panel a -> Panel a
-handlePanel e panel = panel
-  { panelFields = zipWith (fmap . handleFieldN e) [0..] (panelFields panel) }
+handlePanel e panel = case panelValue panel newFields of
+  Nothing -> panel
+  Just _  -> panel { panelFields = newFields }
+  where
+    newFields = zipWith (fmap . handleFieldN e) [0..] (panelFields panel)
+
+validatePanel :: (a -> Bool) -> Panel a -> Panel a
+validatePanel p panel = panel { panelValue = newValue }
+  where
+    newValue fs = case panelValue panel fs of
+      Just x | p x -> Just x
+      _ -> Nothing
 
 handleFieldN :: Event -> Float -> Field -> Field
 handleFieldN e n = handleField (translateMouse 0 (fieldHeight * n) e)
