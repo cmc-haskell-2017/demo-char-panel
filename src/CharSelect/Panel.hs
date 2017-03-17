@@ -9,9 +9,12 @@ data Field
   = FieldSlider   Slider
   | FieldSelecter Selecter
 
+-- | Слайдер.
 data Slider = Slider
-  { sliderValue     :: Float
-  , sliderSelected  :: Bool
+  { sliderMin       :: Int    -- ^ Минимальное значение слайдера.
+  , sliderMax       :: Int    -- ^ Максимальное значение слайдера.
+  , sliderValue     :: Int    -- ^ Текущее значение слайдера.
+  , sliderSelected  :: Bool   -- ^ Выбран ли слайдер?
   }
 
 data Selecter = Selecter (Maybe Int)
@@ -20,35 +23,52 @@ type Fields = [(String, Field)]
 
 data Panel a = Panel
   { panelFields  :: Fields
-  , panelValue   :: Fields -> Either String a
+  , panelValue   :: Fields -> Maybe a
   } deriving (Functor)
 
 instance Applicative Panel where
-  pure x = Panel [] (const (pure x))
+  pure x = Panel [] (pure (pure x))
 
-  Panel s1 v1 <*> Panel s2 v2 = Panel s v
+  Panel f1 v1 <*> Panel f2 v2 = Panel f v
     where
-      s = s1 <> s2
-      v xs = v1 xs <*> v2 xs
+      f = f1 <> f2
+      v fs = v1 fs <*> v2 fs
 
 translateMouse :: Float -> Float -> Event -> Event
 translateMouse dx dy (EventKey k ks m (x, y)) = (EventKey k ks m (x + dx, y + dy))
 translateMouse dx dy (EventMotion (x, y)) = EventMotion (x + dx, y + dy)
 translateMouse _ _ e = e
 
-mkField :: String -> Field -> (Field -> Either String a) -> Panel a
+updateField :: String -> (Field -> Field) -> Fields -> Fields
+updateField name g ((k, v) : fs)
+  | k == name = (name, g v) : fs
+updateField _ _ fs = fs
+
+mkField :: String -> Field -> (Field -> Maybe a) -> Panel a
 mkField name field value = Panel
   { panelFields = [(name, field)]
-  , panelValue  = maybe (Left "no such field") value . lookup name
+  , panelValue  = maybe Nothing value . lookup name
   }
 
-toSlider :: Field -> Either String Slider
-toSlider (FieldSlider s) = Right s
-toSlider _ = Left "not a slider"
+toSlider :: Field -> Maybe Slider
+toSlider (FieldSlider s) = Just s
+toSlider _ = Nothing
 
-slider :: String -> Panel Float
-slider name = mkField name
-  (FieldSlider (Slider 0 False))
+withSlider :: (Slider -> Slider) -> Field -> Field
+withSlider g (FieldSlider s) = FieldSlider (g s)
+withSlider _ f = f
+
+initSlider :: Int -> Int -> Slider
+initSlider minValue maxValue = Slider
+  { sliderMin       = minValue
+  , sliderMax       = maxValue
+  , sliderValue     = minValue
+  , sliderSelected  = False
+  }
+
+slider :: String -> Int -> Int -> Panel Int
+slider name minValue maxValue = mkField name
+  (FieldSlider (initSlider minValue maxValue))
   (fmap sliderValue . toSlider)
 
 drawPanel :: Panel a -> Picture
@@ -73,10 +93,18 @@ handleField e (FieldSlider s) = FieldSlider (handleSlider e s)
 handleField _ (FieldSelecter s) = FieldSelecter s
 
 drawSlider :: Slider -> Picture
-drawSlider (Slider x _) = pictures
+drawSlider s = pictures
   [ color (greyN 0.5) (line [ (-sliderLength/2, 0), (sliderLength/2, 0) ] )
   , color white (translate (sliderLength * (x - 0.5)) 0 (thickCircle (sliderBallRadius/2) sliderBallRadius))
   ]
+  where
+    x = sliderPosition s
+
+sliderPosition :: Slider -> Float
+sliderPosition s = x / w
+  where
+    x = fromIntegral (sliderValue s - sliderMin s)
+    w = fromIntegral (sliderMax s - sliderMin s)
 
 handleSlider :: Event -> Slider -> Slider
 handleSlider (EventKey (MouseButton LeftButton) Down _ mouse) = selectSlider mouse
@@ -85,18 +113,23 @@ handleSlider (EventMotion (x, _)) = moveSlider (0.5 + x / sliderLength)
 handleSlider _ = id
 
 selectSlider :: Point -> Slider -> Slider
-selectSlider (mx, my) (Slider x _)
-  | onBall = Slider x True
+selectSlider (mx, my) s
+  | onBall    = s { sliderSelected = True }
+  | otherwise = s
   where
     onBall = (mx - sliderLength * (x - 0.5))^2 + my^2 <= sliderBallRadius^2
-selectSlider _ s = s
+    x = sliderPosition s
 
 unselectSlider :: Slider -> Slider
-unselectSlider (Slider x _) = Slider x False
+unselectSlider s = s { sliderSelected = False }
 
 moveSlider :: Float -> Slider -> Slider
-moveSlider x (Slider _ True) = Slider (max 0 (min 1 x)) True
-moveSlider _ s = s
+moveSlider x s
+  | sliderSelected s = s { sliderValue = newSliderValue }
+  | otherwise = s
+  where
+    i = sliderMin s + round (x * fromIntegral (sliderMax s - sliderMin s))
+    newSliderValue = max (sliderMin s) (min (sliderMax s) i)
 
 fieldHeight :: Float
 fieldHeight = 100

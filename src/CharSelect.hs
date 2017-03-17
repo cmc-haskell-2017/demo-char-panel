@@ -12,10 +12,10 @@ charSelectScreen =
     bgColor = black   -- цвет фона
     fps     = 60      -- кол-во кадров в секунду
 
-type Screen = Panel Float
+type Screen = Panel Int
 
 initScreen :: Screen
-initScreen = slider "ololo" <* slider "alala" <* slider "elele"
+initScreen = slider "ololo" 0 4 <* slider "alala" 0 23 <* slider "elele" 0 19
 
 drawScreen :: Screen -> Picture
 drawScreen = drawPanel

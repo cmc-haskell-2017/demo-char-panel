@@ -16,7 +16,7 @@ library
   hs-source-dirs:      src
   exposed-modules:
     CharSelect
-    CharSelect.Form
+    CharSelect.Panel
   ghc-options:         -Wall -fno-warn-type-defaults
   build-depends:       base >= 4.7 && < 5
                      , gloss
