@@ -12,10 +12,17 @@ charSelectScreen =
     bgColor = black   -- цвет фона
     fps     = 60      -- кол-во кадров в секунду
 
-type Screen = Panel Attrs
+type Screen = Panel Character
 
 initScreen :: Screen
-initScreen = validatePanel ((< 10) . attrsTotal) attrs
+initScreen = Character
+  <$> selector "Name" (color white . centeredText) ["John", "Jane"]
+  <*> attrs
+
+data Character = Character
+  { charName  :: String
+  , charAttrs :: Attrs
+  }
 
 data Attrs = Attrs
   { attrStrength  :: Int
@@ -28,11 +35,13 @@ attrsTotal :: Attrs -> Int
 attrsTotal (Attrs s d v e) = s + d + v + e
 
 attrs :: Panel Attrs
-attrs = Attrs
-  <$> slider "Strength"   0 10 orange
-  <*> slider "Dexterity"  0 10 yellow
-  <*> slider "Vitality"   0 10 red
-  <*> slider "Energy"     0 10 blue
+attrs = validatePanel ((<= 10) . attrsTotal) attrsPanel
+  where
+    attrsPanel = Attrs
+      <$> slider "Strength"   0 10 orange
+      <*> slider "Dexterity"  0 10 yellow
+      <*> slider "Vitality"   0 10 red
+      <*> slider "Energy"     0 10 blue
 
 drawScreen :: Screen -> Picture
 drawScreen = drawPanel

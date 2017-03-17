@@ -1,5 +1,15 @@
 {-# LANGUAGE DeriveFunctor #-}
-module CharSelect.Panel where
+module CharSelect.Panel (
+  Panel,
+  drawPanel,
+  handlePanel,
+  validatePanel,
+
+  slider,
+  selector,
+
+  centeredText,
+) where
 
 import Graphics.Gloss.Interface.Pure.Game
 import Data.Maybe (maybe)
@@ -7,7 +17,7 @@ import Data.Monoid
 
 data Field
   = FieldSlider   Slider
-  | FieldSelecter Selecter
+  | FieldSelector Selector
 
 -- | Слайдер.
 data Slider = Slider
@@ -18,7 +28,11 @@ data Slider = Slider
   , sliderColor     :: Color  -- ^ Цвет слайдера.
   }
 
-data Selecter = Selecter (Maybe Int)
+-- | Элемент выбора.
+data Selector = Selector
+  { selectorPictures  :: [Picture]  -- ^ Изображения различных вариантов.
+  , selectorIndex     :: Int        -- ^ Номер выбранного варианта.
+  }
 
 type Fields = [(String, Field)]
 
@@ -40,11 +54,6 @@ translateMouse dx dy (EventKey k ks m (x, y)) = (EventKey k ks m (x + dx, y + dy
 translateMouse dx dy (EventMotion (x, y)) = EventMotion (x + dx, y + dy)
 translateMouse _ _ e = e
 
-updateField :: String -> (Field -> Field) -> Fields -> Fields
-updateField name g ((k, v) : fs)
-  | k == name = (name, g v) : fs
-updateField _ _ fs = fs
-
 mkField :: String -> Field -> (Field -> Maybe a) -> Panel a
 mkField name field value = Panel
   { panelFields = [(name, field)]
@@ -54,10 +63,6 @@ mkField name field value = Panel
 toSlider :: Field -> Maybe Slider
 toSlider (FieldSlider s) = Just s
 toSlider _ = Nothing
-
-withSlider :: (Slider -> Slider) -> Field -> Field
-withSlider g (FieldSlider s) = FieldSlider (g s)
-withSlider _ f = f
 
 initSlider :: Int -> Int -> Color -> Slider
 initSlider minValue maxValue c = Slider
@@ -73,6 +78,21 @@ slider name minValue maxValue c = mkField name
   (FieldSlider (initSlider minValue maxValue c))
   (fmap sliderValue . toSlider)
 
+toSelector :: Field -> Maybe Selector
+toSelector (FieldSelector s) = Just s
+toSelector _ = Nothing
+
+initSelector :: [Picture] -> Selector
+initSelector ps = Selector
+  { selectorPictures = ps
+  , selectorIndex    = 0
+  }
+
+selector :: String -> (a -> Picture) -> [a] -> Panel a
+selector name drawValue values = mkField name
+  (FieldSelector (initSelector (map drawValue values)))
+  (fmap (\s -> values !! selectorIndex s) . toSelector)
+
 drawPanel :: Panel a -> Picture
 drawPanel panel = pictures (zipWith drawFieldN [0..] (map snd (panelFields panel)))
 
@@ -81,7 +101,7 @@ drawFieldN n = translate 0 (-fieldHeight * n) . drawField
 
 drawField :: Field -> Picture
 drawField (FieldSlider s) = drawSlider s
-drawField (FieldSelecter _) = blank
+drawField (FieldSelector s) = drawSelector s
 
 handlePanel :: Event -> Panel a -> Panel a
 handlePanel e panel = case panelValue panel newFields of
@@ -102,7 +122,7 @@ handleFieldN e n = handleField (translateMouse 0 (fieldHeight * n) e)
 
 handleField :: Event -> Field -> Field
 handleField e (FieldSlider s) = FieldSlider (handleSlider e s)
-handleField _ (FieldSelecter s) = FieldSelecter s
+handleField e (FieldSelector s) = FieldSelector (handleSelector e s)
 
 drawSlider :: Slider -> Picture
 drawSlider s = pictures
@@ -120,6 +140,30 @@ sliderPosition s = x / w
   where
     x = fromIntegral (sliderValue s - sliderMin s)
     w = fromIntegral (sliderMax s - sliderMin s)
+
+drawSelector :: Selector -> Picture
+drawSelector s = pictures
+    [ translate (-dx) 0 (rotate 180 arrow)
+    , selected
+    , translate dx 0 arrow ]
+  where
+    selected = selectorPictures s !! selectorIndex s
+    arrow = color white (pictures
+      [ polygon [ (w/5, 0), (w, 0), (0,  w/2) ]
+      , polygon [ (w/5, 0), (w, 0), (0, -w/2) ]
+      ])
+    w = selectorArrowWidth
+    dx = selectorWidth / 2 - w
+
+-- | Центрированный текст, отмасштабированный таким образом,
+-- чтобы хорошо смотреться в элементе выбора.
+centeredText :: String -> Picture
+centeredText s = translate dx dy (scale z z (text s))
+  where
+    z = selectorWidth * 0.001
+    w = 80 * z
+    dx = - w * fromIntegral (length s) / 2
+    dy = - w / 2
 
 handleSlider :: Event -> Slider -> Slider
 handleSlider (EventKey (MouseButton LeftButton) Down _ mouse) = selectSlider mouse
@@ -146,6 +190,31 @@ moveSlider x s
     i = sliderMin s + round (x * fromIntegral (sliderMax s - sliderMin s))
     newSliderValue = max (sliderMin s) (min (sliderMax s) i)
 
+handleSelector :: Event -> Selector -> Selector
+handleSelector (EventKey (MouseButton LeftButton) Down _ mouse) = handleSelectorClick mouse
+handleSelector _ = id
+
+handleSelectorClick :: Point -> Selector -> Selector
+handleSelectorClick (mx, my) s
+  | onLeftArrow  = selectPrevious s
+  | onRightArrow = selectNext s
+  | otherwise    = s
+  where
+    w  = selectorArrowWidth
+    sw = selectorWidth
+    onLeftArrow = and
+      [ -w/2 <= my && my <= w/2
+      , -sw/2 <= mx && mx <= -sw/2 + w ]
+    onRightArrow = and
+      [ -w/2 <= my && my <= w/2
+      , sw/2 - w <= mx && mx <= sw/2]
+
+selectPrevious :: Selector -> Selector
+selectPrevious s = s { selectorIndex = (selectorIndex s - 1) `mod` length (selectorPictures s) }
+
+selectNext :: Selector -> Selector
+selectNext s = s { selectorIndex = (selectorIndex s + 1) `mod` length (selectorPictures s) }
+
 fieldHeight :: Float
 fieldHeight = 100
 
@@ -155,3 +224,8 @@ sliderLength = 300
 sliderBallRadius :: Float
 sliderBallRadius = 9
 
+selectorWidth :: Float
+selectorWidth = sliderLength
+
+selectorArrowWidth :: Float
+selectorArrowWidth = selectorWidth / 10
