@@ -12,10 +12,24 @@ charSelectScreen =
     bgColor = black   -- цвет фона
     fps     = 60      -- кол-во кадров в секунду
 
-type Screen = Panel Int
+type Screen = Panel Attrs
 
 initScreen :: Screen
-initScreen = slider "ololo" 0 4 <* slider "alala" 0 23 <* slider "elele" 0 19
+initScreen = attrs
+
+data Attrs = Attrs
+  { attrStrength  :: Int
+  , attrDexterity :: Int
+  , attrVitality  :: Int
+  , attrEnergy    :: Int
+  }
+
+attrs :: Panel Attrs
+attrs = Attrs
+  <$> slider "Strength"   0 10 orange
+  <*> slider "Dexterity"  0 10 yellow
+  <*> slider "Vitality"   0 10 red
+  <*> slider "Energy"     0 10 blue
 
 drawScreen :: Screen -> Picture
 drawScreen = drawPanel

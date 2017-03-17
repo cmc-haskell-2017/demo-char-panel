@@ -15,6 +15,7 @@ data Slider = Slider
   , sliderMax       :: Int    -- ^ Максимальное значение слайдера.
   , sliderValue     :: Int    -- ^ Текущее значение слайдера.
   , sliderSelected  :: Bool   -- ^ Выбран ли слайдер?
+  , sliderColor     :: Color  -- ^ Цвет слайдера.
   }
 
 data Selecter = Selecter (Maybe Int)
@@ -58,17 +59,18 @@ withSlider :: (Slider -> Slider) -> Field -> Field
 withSlider g (FieldSlider s) = FieldSlider (g s)
 withSlider _ f = f
 
-initSlider :: Int -> Int -> Slider
-initSlider minValue maxValue = Slider
+initSlider :: Int -> Int -> Color -> Slider
+initSlider minValue maxValue c = Slider
   { sliderMin       = minValue
   , sliderMax       = maxValue
   , sliderValue     = minValue
   , sliderSelected  = False
+  , sliderColor     = c
   }
 
-slider :: String -> Int -> Int -> Panel Int
-slider name minValue maxValue = mkField name
-  (FieldSlider (initSlider minValue maxValue))
+slider :: String -> Int -> Int -> Color -> Panel Int
+slider name minValue maxValue c = mkField name
+  (FieldSlider (initSlider minValue maxValue c))
   (fmap sliderValue . toSlider)
 
 drawPanel :: Panel a -> Picture
@@ -94,11 +96,14 @@ handleField _ (FieldSelecter s) = FieldSelecter s
 
 drawSlider :: Slider -> Picture
 drawSlider s = pictures
-  [ color (greyN 0.5) (line [ (-sliderLength/2, 0), (sliderLength/2, 0) ] )
-  , color white (translate (sliderLength * (x - 0.5)) 0 (thickCircle (sliderBallRadius/2) sliderBallRadius))
+  [ color (greyN 0.5) (line [ (-w/2, 0), (w/2, 0) ] )
+  , color (sliderColor s) (polygon [ (-w/2, -r/4), (dx, -r/4), (dx, r/4), (-w/2, r/4) ])
+  , color white (translate dx 0 (thickCircle (r/2) r))
   ]
   where
-    x = sliderPosition s
+    dx = w * (sliderPosition s - 0.5)
+    w = sliderLength
+    r = sliderBallRadius
 
 sliderPosition :: Slider -> Float
 sliderPosition s = x / w
