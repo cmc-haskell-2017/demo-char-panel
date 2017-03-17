@@ -1,5 +1,6 @@
 module CharSelect where
 
+import Data.Monoid
 import Graphics.Gloss.Interface.Pure.Game
 
 import CharSelect.Panel
@@ -125,32 +126,72 @@ drawBody = pictures
   ]
 
 drawClassClothes :: Class -> Picture
-drawClassClothes Warrior = drawWarriorArmor
-drawClassClothes _ = blank
+drawClassClothes Warrior  = drawWarriorArmor
+drawClassClothes Hunter   = drawHunterArmor
+drawClassClothes Priest   = drawPriestClothes
+drawClassClothes Mage     = drawMageClothes
 
 drawWarriorArmor :: Picture
 drawWarriorArmor = pictures
-  [ color (dark orange) pants
-  , color (greyN 0.5) armor
+  [ color (dark orange) drawPants
+  , color (greyN 0.5) drawArmor
   ]
+
+drawHunterArmor :: Picture
+drawHunterArmor = pictures
+  [ color (dark (mixColors 3 1 orange green)) drawPants
+  , color (dark (mixColors 1 3 orange green)) drawArmor
+  ]
+
+drawArmor :: Picture
+drawArmor = pictures
+  -- броня
+  [ polygon [ (-11.5, 0), (-11.5, -42.5), (11.5, -42.5), (11.5, 0) ]
+  -- левый наплечник
+  , polygon [ (-11, -10), (-11, -15), (-23, -15), (-23, -10) ]
+  , translate (-11) (-10) (thickArc 90 180 6 12)
+  -- правый наплечник
+  , polygon [ (11, -10), (11, -15), (23, -15), (23, -10) ]
+  , translate 11 (-10) (thickArc 0 90 6 12)
+  ]
+
+drawPants :: Picture
+drawPants = pictures
+  [ polygon [ (-11.5, -41), (-11.5, -45), (11.5, -45), (11.5, -41) ]
+  -- левая нога
+  , polygon [ (-11.5, -42), (-11.5, -72), (-0.5, -72), (-0.5, -42) ]
+  -- правая нога
+  , polygon [ (11.5, -42), (11.5, -72), (0.5, -72), (0.5, -42) ]
+  ]
+
+drawMageClothes :: Picture
+drawMageClothes = color (dark magenta) (drawRobe <> hood)
   where
-    armor = pictures
-      -- броня
-      [ polygon [ (-11.5, 0), (-11.5, -42.5), (11.5, -42.5), (11.5, 0) ]
-      -- левый наплечник
-      , polygon [ (-11, -10), (-11, -15), (-23, -15), (-23, -10) ]
-      , translate (-11) (-10) (thickArc 90 180 6 12)
-      -- правый наплечник
-      , polygon [ (11, -10), (11, -15), (23, -15), (23, -10) ]
-      , translate 11 (-10) (thickArc 0 90 6 12)
+    hood = pictures
+      -- капюшон
+      [ translate 0 11 (thickArc 0 180 8 4)
+      , polygon [ (-10, 11), (-8.5, 0), (-4, 0), (-6, 11) ]
+      , polygon [ (10, 11), (8.5, 0), (4, 0), (6, 11) ]
       ]
-    pants = pictures
-      [ polygon [ (-11.5, -41), (-11.5, -45), (11.5, -45), (11.5, -41) ]
-      -- левая нога
-      , polygon [ (-11.5, -42), (-11.5, -72), (-0.5, -72), (-0.5, -42) ]
-      -- правая нога
-      , polygon [ (11.5, -42), (11.5, -72), (0.5, -72), (0.5, -42) ]
-      ]
+
+drawRobe :: Picture
+drawRobe = pictures
+  -- туловище
+  [ polygon [ (-11, 0), (-14, -72), (14, -72), (11, 0) ]
+  -- левое плечо
+  , polygon [ (-11, -10), (-11, -15), (-21, -15), (-21, -10) ]
+  , translate (-11) (-10) (thickArc 90 180 5 10)
+  -- правое плечо
+  , polygon [ (11, -10), (11, -15), (21, -15), (21, -10) ]
+  , translate 11 (-10) (thickArc 0 90 5 10)
+  -- левая рука
+  , polygon [ (-21, -15), (-21.5, -35), (-12.5, -35), (-13, -15) ]
+  -- правая рука
+  , polygon [ (21, -15), (21.5, -35), (12.5, -35), (13, -15) ]
+  ]
+
+drawPriestClothes :: Picture
+drawPriestClothes = color (mixColors 1 1 yellow white) drawRobe
 
 charSkinColor :: Character -> Color
 charSkinColor c = mixColors (1 - t) t darkSkinColor lightSkinColor
