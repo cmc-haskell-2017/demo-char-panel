@@ -92,7 +92,10 @@ drawScreen screen = pictures
   ]
 
 drawCharacter :: Character -> Picture
-drawCharacter c = scale charSize charSize (pictures [ color (charSkinColor c) drawBody ])
+drawCharacter c = scale charSize charSize (pictures
+  [ color (charSkinColor c) drawBody
+  , drawClassClothes (charClass c)
+  ])
 
 -- | Тело человека с головой.
 drawBody :: Picture
@@ -120,6 +123,34 @@ drawBody = pictures
   , polygon [ (11, -42), (11, -82), (1, -82), (1, -42) ]
   , translate 6 (-82) (thickCircle 2.5 5)
   ]
+
+drawClassClothes :: Class -> Picture
+drawClassClothes Warrior = drawWarriorArmor
+drawClassClothes _ = blank
+
+drawWarriorArmor :: Picture
+drawWarriorArmor = pictures
+  [ color (dark orange) pants
+  , color (greyN 0.5) armor
+  ]
+  where
+    armor = pictures
+      -- броня
+      [ polygon [ (-11.5, 0), (-11.5, -42.5), (11.5, -42.5), (11.5, 0) ]
+      -- левый наплечник
+      , polygon [ (-11, -10), (-11, -15), (-23, -15), (-23, -10) ]
+      , translate (-11) (-10) (thickArc 90 180 6 12)
+      -- правый наплечник
+      , polygon [ (11, -10), (11, -15), (23, -15), (23, -10) ]
+      , translate 11 (-10) (thickArc 0 90 6 12)
+      ]
+    pants = pictures
+      [ polygon [ (-11.5, -41), (-11.5, -45), (11.5, -45), (11.5, -41) ]
+      -- левая нога
+      , polygon [ (-11.5, -42), (-11.5, -72), (-0.5, -72), (-0.5, -42) ]
+      -- правая нога
+      , polygon [ (11.5, -42), (11.5, -72), (0.5, -72), (0.5, -42) ]
+      ]
 
 charSkinColor :: Character -> Color
 charSkinColor c = mixColors (1 - t) t darkSkinColor lightSkinColor
