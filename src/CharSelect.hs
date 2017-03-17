@@ -12,10 +12,24 @@ charSelectScreen =
     bgColor = black   -- цвет фона
     fps     = 60      -- кол-во кадров в секунду
 
-type Screen = Panel Character
+data Screen = Screen
+  { screenPanel :: Panel Character
+  , screenChar  :: Maybe Character
+  }
+
+updateScreenPanel :: (Panel Character -> Panel Character) -> Screen -> Screen
+updateScreenPanel f screen = screen
+  { screenPanel = newPanel
+  , screenChar  = readPanel newPanel
+  }
+  where
+    newPanel = f (screenPanel screen)
 
 initScreen :: Screen
-initScreen = character
+initScreen = Screen
+  { screenPanel = character
+  , screenChar  = readPanel character
+  }
 
 data Race
   = Human
@@ -72,10 +86,54 @@ attrs = validatePanel ((<= 10) . attrsTotal) attrsPanel
       <*> slider "Energy"     0 10 blue
 
 drawScreen :: Screen -> Picture
-drawScreen = drawPanel
+drawScreen screen = pictures
+  [ uncurry translate panelOffset (drawPanel (screenPanel screen))
+  , uncurry translate charOffset (foldMap drawCharacter (screenChar screen))
+  ]
+
+drawCharacter :: Character -> Picture
+drawCharacter c = scale charSize charSize (pictures [ color (charSkinColor c) drawBody ])
+
+-- | Тело человека с головой.
+drawBody :: Picture
+drawBody = pictures
+  -- голова
+  [ translate 0 11 (thickCircle 4.5 9)
+  -- туловище
+  , polygon [ (-11, 0), (-11, -42), (11, -42), (11, 0) ]
+  -- левое плечо
+  , polygon [ (-11, -10), (-11, -15), (-21, -15), (-21, -10) ]
+  , translate (-11) (-10) (thickArc 90 180 5 10)
+  -- левая рука
+  , polygon [ (-21, -15), (-21, -39), (-13, -39), (-13, -15) ]
+  , translate (-17) (-39) (thickCircle 2 4)
+  -- правое плечо
+  , polygon [ (11, -10), (11, -15), (21, -15), (21, -10) ]
+  , translate 11 (-10) (thickArc 0 90 5 10)
+  -- правая рука
+  , polygon [ (21, -15), (21, -39), (13, -39), (13, -15) ]
+  , translate 17 (-39) (thickCircle 2 4)
+  -- левая нога
+  , polygon [ (-11, -42), (-11, -82), (-1, -82), (-1, -42) ]
+  , translate (-6) (-82) (thickCircle 2.5 5)
+  -- правая нога
+  , polygon [ (11, -42), (11, -82), (1, -82), (1, -42) ]
+  , translate 6 (-82) (thickCircle 2.5 5)
+  ]
+
+charSkinColor :: Character -> Color
+charSkinColor c = mixColors (1 - t) t darkSkinColor lightSkinColor
+  where
+    t = charSkinTone c
+    (darkSkinColor, lightSkinColor) = raceSkinColorRange (charRace c)
+
+raceSkinColorRange :: Race -> (Color, Color)
+raceSkinColorRange Human = (makeColorI 141 85 36 255, makeColorI 255 219 172 255)
+raceSkinColorRange Elf   = (makeColorI 85 36 141 255, makeColorI 219 172 255 255)
+raceSkinColorRange Orc   = (makeColorI 85 141 36 255, makeColorI 219 255 172 255)
 
 handleScreen :: Event -> Screen -> Screen
-handleScreen = handlePanel
+handleScreen = updateScreenPanel . handlePanel . uncurry translateMouse (- panelOffset)
 
 updateScreen :: Float -> Screen -> Screen
 updateScreen _ = id
@@ -85,3 +143,13 @@ screenWidth = 1200
 
 screenHeight :: Num a => a
 screenHeight = 675
+
+charSize :: Float
+charSize = 3
+
+panelOffset :: (Float, Float)
+panelOffset = (-200, 150)
+
+charOffset :: (Float, Float)
+charOffset = (150, 100)
+

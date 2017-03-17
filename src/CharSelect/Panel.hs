@@ -4,12 +4,14 @@ module CharSelect.Panel (
   drawPanel,
   handlePanel,
   validatePanel,
+  readPanel,
 
   slider,
   selector,
   selector_,
 
   centeredText,
+  translateMouse,
 ) where
 
 import Graphics.Gloss.Interface.Pure.Game
@@ -61,6 +63,14 @@ mkField name field value = Panel
   , panelValue  = maybe Nothing value . lookup name
   }
 
+readPanel :: Panel a -> Maybe a
+readPanel = panelValue <*> panelFields
+
+panelHeight :: Panel a -> Float
+panelHeight panel = fromIntegral n * fieldHeight
+  where
+    n = length (panelFields panel)
+
 toSlider :: Field -> Maybe Slider
 toSlider (FieldSlider s) = Just s
 toSlider _ = Nothing
@@ -98,10 +108,18 @@ selector_ :: (Show a, Bounded a, Enum a) => String -> Panel a
 selector_ name = selector name (color white . centeredText . show) [minBound..maxBound]
 
 drawPanel :: Panel a -> Picture
-drawPanel panel = pictures (zipWith drawFieldN [0..] (map snd (panelFields panel)))
+drawPanel panel = pictures (zipWith drawFieldN [0..] (panelFields panel))
 
-drawFieldN :: Float -> Field -> Picture
-drawFieldN n = translate 0 (-fieldHeight * n) . drawField
+drawFieldN :: Float -> (String, Field) -> Picture
+drawFieldN n = translate 0 (-fieldHeight * n) . drawNamedField
+
+drawNamedField :: (String, Field) -> Picture
+drawNamedField (name, field) = drawFieldName name <> drawField field
+
+drawFieldName :: String -> Picture
+drawFieldName = translate dx 0 . color white . leftText
+  where
+    dx = - 1.5 * fieldWidth
 
 drawField :: Field -> Picture
 drawField (FieldSlider s) = drawSlider s
@@ -164,9 +182,18 @@ drawSelector s = pictures
 centeredText :: String -> Picture
 centeredText s = translate dx dy (scale z z (text s))
   where
-    z = selectorWidth * 0.001
+    z = selectorWidth * 0.0008
     w = 80 * z
     dx = - w * fromIntegral (length s) / 2
+    dy = - w / 2
+
+-- | Центрированный текст, отмасштабированный таким образом,
+-- чтобы хорошо смотреться в элементе выбора.
+leftText :: String -> Picture
+leftText s = translate 0 dy (scale z z (text s))
+  where
+    z = selectorWidth * 0.001
+    w = 80 * z
     dy = - w / 2
 
 handleSlider :: Event -> Slider -> Slider
@@ -222,14 +249,17 @@ selectNext s = s { selectorIndex = (selectorIndex s + 1) `mod` length (selectorP
 fieldHeight :: Float
 fieldHeight = 50
 
+fieldWidth :: Float
+fieldWidth = fieldHeight * 5
+
 sliderLength :: Float
-sliderLength = fieldHeight * 5
+sliderLength = fieldWidth
 
 sliderBallRadius :: Float
 sliderBallRadius = 9
 
 selectorWidth :: Float
-selectorWidth = sliderLength
+selectorWidth = fieldWidth
 
 selectorArrowWidth :: Float
 selectorArrowWidth = selectorWidth / 10
