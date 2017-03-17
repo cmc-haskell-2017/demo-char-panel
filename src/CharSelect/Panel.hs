@@ -7,6 +7,7 @@ module CharSelect.Panel (
 
   slider,
   selector,
+  selector_,
 
   centeredText,
 ) where
@@ -92,6 +93,9 @@ selector :: String -> (a -> Picture) -> [a] -> Panel a
 selector name drawValue values = mkField name
   (FieldSelector (initSelector (map drawValue values)))
   (fmap (\s -> values !! selectorIndex s) . toSelector)
+
+selector_ :: (Show a, Bounded a, Enum a) => String -> Panel a
+selector_ name = selector name (color white . centeredText . show) [minBound..maxBound]
 
 drawPanel :: Panel a -> Picture
 drawPanel panel = pictures (zipWith drawFieldN [0..] (map snd (panelFields panel)))
@@ -216,10 +220,10 @@ selectNext :: Selector -> Selector
 selectNext s = s { selectorIndex = (selectorIndex s + 1) `mod` length (selectorPictures s) }
 
 fieldHeight :: Float
-fieldHeight = 100
+fieldHeight = 50
 
 sliderLength :: Float
-sliderLength = 300
+sliderLength = fieldHeight * 5
 
 sliderBallRadius :: Float
 sliderBallRadius = 9

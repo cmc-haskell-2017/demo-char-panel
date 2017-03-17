@@ -15,13 +15,27 @@ charSelectScreen =
 type Screen = Panel Character
 
 initScreen :: Screen
-initScreen = Character
-  <$> selector "Name" (color white . centeredText) ["John", "Jane"]
-  <*> attrs
+initScreen = character
+
+data Race
+  = Human
+  | Elf
+  | Orc
+  deriving (Show, Bounded, Enum)
+
+data Class
+  = Warrior
+  | Hunter
+  | Priest
+  | Mage
+  deriving (Show, Bounded, Enum)
 
 data Character = Character
-  { charName  :: String
-  , charAttrs :: Attrs
+  { charName      :: String
+  , charRace      :: Race
+  , charClass     :: Class
+  , charSkinTone  :: Float
+  , charAttrs     :: Attrs
   }
 
 data Attrs = Attrs
@@ -30,6 +44,20 @@ data Attrs = Attrs
   , attrVitality  :: Int
   , attrEnergy    :: Int
   }
+
+character :: Panel Character
+character = Character
+  <$> selector "Name" (color white . centeredText) ["John", "Jane"]
+  <*> selector_ "Race"
+  <*> selector_ "Class"
+  <*> skinTone
+  <*> attrs
+
+skinTone :: Panel Float
+skinTone = fmap g (slider "Skin tone" 0 n white)
+  where
+    n = 1000
+    g i = fromIntegral i / fromIntegral n
 
 attrsTotal :: Attrs -> Int
 attrsTotal (Attrs s d v e) = s + d + v + e
