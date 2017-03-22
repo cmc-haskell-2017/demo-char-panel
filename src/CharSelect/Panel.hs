@@ -111,7 +111,50 @@ selector name drawValue values = mkField name
   (fmap (\s -> values !! selectorIndex s) . toSelector)
 
 drawPanel :: (String -> Picture) -> Panel a -> Picture
-drawPanel drawFieldName panel = pictures (zipWith (drawFieldN drawFieldName) [0..] (panelFields panel))
+drawPanel drawFieldName panel = pictures
+  [ drawPanelBackground (panelHeight panel)
+  , pictures (zipWith (drawFieldN drawFieldName) [0..] (panelFields panel))
+  ]
+
+roundedRect :: Color -> Color -> Float -> Float -> Float -> Float -> Picture
+roundedRect innerColor borderColor w h r d = pictures
+  [ color innerColor inner
+  , color borderColor border
+  ]
+  where
+    border = pictures
+      [ rect (-w/2 - d/2, -h/2 + r) (-w/2 + d/2, h/2 - r)
+      , rect ( w/2 - d/2, -h/2 + r) ( w/2 + d/2, h/2 - r)
+      , rect ( w/2 - r, -h/2 + d/2) (-w/2 + r, -h/2 - d/2)
+      , rect ( w/2 - r,  h/2 + d/2) (-w/2 + r,  h/2 - d/2)
+      , translate (-w/2 + r) ( h/2 - r) (rotate 270 cornerBorder)
+      , translate (-w/2 + r) (-h/2 + r) (rotate 180 cornerBorder)
+      , translate ( w/2 - r) (-h/2 + r) (rotate 90 cornerBorder)
+      , translate ( w/2 - r) ( h/2 - r) cornerBorder
+      ]
+
+    inner = pictures
+      [ rect (-w/2, -h/2 + r) (-w/2 + r,  h/2 - r)
+      , rect ( w/2, -h/2 + r) ( w/2 - r,  h/2 - r)
+      , rect (-w/2 + r, -h/2) ( w/2 - r, -h/2 + r)
+      , rect (-w/2 + r,  h/2) ( w/2 - r,  h/2 - r)
+      , rect (-w/2 + r, -h/2 + r) (w/2 - r, h/2 - r)
+      , translate (-w/2 + r) ( h/2 - r) (rotate 270 corner)
+      , translate (-w/2 + r) (-h/2 + r) (rotate 180 corner)
+      , translate ( w/2 - r) (-h/2 + r) (rotate 90 corner)
+      , translate ( w/2 - r) ( h/2 - r) corner
+      ]
+
+    rect (l, b) (r, t) = polygon [ (l, b), (l, t), (r, t), (r, b) ]
+    corner = thickArc 0 90 (r/2) r
+    cornerBorder = thickArc 0 90 r d
+
+drawPanelBackground :: Float -> Picture
+drawPanelBackground h = translate (-0.3 * fw) (fh/2 - h/2)
+  (roundedRect (withAlpha 0.7 white) (greyN 0.7) (2 * fw) (h + fh) (0.1 * fw) (0.02 * fw))
+  where
+    fh = fieldHeight
+    fw = fieldWidth
 
 drawFieldN :: (String -> Picture) -> Float -> (String, Field) -> Picture
 drawFieldN drawFieldName n = translate 0 (-fieldHeight * n) . drawNamedField drawFieldName

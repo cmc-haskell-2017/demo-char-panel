@@ -127,7 +127,7 @@ drawScreen screen = pictures
     drawCharacter c = scale charSize charSize (drawSkin c <> drawCharType c)
     drawCharType = imgCharType (screenImages screen) . charType
     drawSkin c = color (charSkinColor c)
-      (polygon [ (-290, -290), (-290, 290), (290, 290), (290, -290) ])
+      (polygon [ (-290, -390), (-290, 310), (290, 310), (290, -390) ])
 
 charSkinColor :: Character -> Color
 charSkinColor c = mixColors (1 - t) t darkSkinColor lightSkinColor
