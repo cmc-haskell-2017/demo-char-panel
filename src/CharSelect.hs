@@ -18,7 +18,8 @@ charSelectScreen = do
     fps     = 60      -- кол-во кадров в секунду
 
 data Images = Images
-  { imgFieldName  :: String -> Picture
+  { imgBackground :: Picture
+  , imgFieldName  :: String -> Picture
   , imgSexName    :: Sex -> Picture
   , imgRaceName   :: Race -> Picture
   , imgClassName  :: Class -> Picture
@@ -27,7 +28,8 @@ data Images = Images
 
 loadImages :: IO Images
 loadImages = Images
-  <$> loadAll loadTextImage   allFieldNames
+  <$> fmap fold (loadJuicyJPG "images/background.jpeg")
+  <*> loadAll loadTextImage   allFieldNames
   <*> loadAll sexNameImage    allSexes
   <*> loadAll raceNameImage   allRaces
   <*> loadAll classNameImage  allClasses
@@ -39,7 +41,7 @@ loadTextImage s = fmap (fmap (translate 0 10 . scale 0.14 0.14)) (loadJuicyPNG p
     path = "images/" ++ s ++ ".png"
 
 allFieldNames :: [String]
-allFieldNames = panelFieldNames (character (Images mempty mempty mempty mempty mempty))
+allFieldNames = panelFieldNames (character (Images mempty mempty mempty mempty mempty mempty))
 
 loadAll :: Eq a => (a -> IO (Maybe Picture)) -> [a] -> IO (a -> Picture)
 loadAll load xs = indexEnum <$> sequenceA (map load xs)
@@ -117,7 +119,8 @@ attrs = validatePanel ((<= 10) . attrsTotal) attrsPanel
 
 drawScreen :: Screen -> Picture
 drawScreen screen = pictures
-  [ uncurry translate charOffset (foldMap drawCharacter (screenChar screen))
+  [ scale (1200 / 1920) (1200 / 1920) (imgBackground (screenImages screen))
+  , uncurry translate charOffset (foldMap drawCharacter (screenChar screen))
   , uncurry translate panelOffset (drawPanel (imgFieldName (screenImages screen)) (screenPanel screen))
   ]
   where
@@ -150,7 +153,7 @@ screenHeight :: Num a => a
 screenHeight = 650
 
 charSize :: Float
-charSize = 0.017 * fieldHeight
+charSize = 1200 / 1920
 
 panelOffset :: (Float, Float)
 panelOffset = (-fieldWidth / 2, (panelHeight (character undefined) - fieldHeight) / 2)
