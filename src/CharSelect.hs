@@ -1,21 +1,71 @@
 module CharSelect where
 
 import Data.Monoid
+import Data.Foldable
 import Graphics.Gloss.Interface.Pure.Game
+import Graphics.Gloss.Juicy
 
+import CharSelect.Character
 import CharSelect.Panel
 
 charSelectScreen :: IO ()
-charSelectScreen =
-  play display bgColor fps initScreen drawScreen handleScreen updateScreen
+charSelectScreen = do
+  screen <- initScreen
+  play display bgColor fps screen drawScreen handleScreen updateScreen
   where
     display = InWindow "Экран выбора персонажа" (screenWidth, screenHeight) (100, 100)
-    bgColor = black   -- цвет фона
+    bgColor = white   -- цвет фона
     fps     = 60      -- кол-во кадров в секунду
 
+data Images = Images
+  { imgFieldName  :: String -> Picture
+  , imgSexName    :: Sex -> Picture
+  , imgRaceName   :: Race -> Picture
+  , imgClassName  :: Class -> Picture
+  , imgCharType   :: CharType -> Picture
+  }
+
+loadImages :: IO Images
+loadImages = Images
+  <$> loadAll loadTextImage   allFieldNames
+  <*> loadAll sexNameImage    allSexes
+  <*> loadAll raceNameImage   allRaces
+  <*> loadAll classNameImage  allClasses
+  <*> loadAll charTypeImage   allCharTypes
+
+loadTextImage :: String -> IO (Maybe Picture)
+loadTextImage s = fmap (fmap (translate 0 10 . scale 0.14 0.14)) (loadJuicyPNG path)
+  where
+    path = "images/" ++ s ++ ".png"
+
+allFieldNames :: [String]
+allFieldNames = panelFieldNames (character (Images mempty mempty mempty mempty mempty))
+
+loadAll :: Eq a => (a -> IO (Maybe Picture)) -> [a] -> IO (a -> Picture)
+loadAll load xs = indexEnum <$> sequenceA (map load xs)
+  where
+    indexEnum ps x = case lookup x (zip xs ps) of
+      Nothing -> blank
+      Just mp -> fold mp
+
+sexNameImage :: Sex -> IO (Maybe Picture)
+sexNameImage = loadTextImage . show
+
+raceNameImage :: Race -> IO (Maybe Picture)
+raceNameImage = loadTextImage . show
+
+classNameImage :: Class -> IO (Maybe Picture)
+classNameImage = loadTextImage . show
+
+charTypeImage :: CharType -> IO (Maybe Picture)
+charTypeImage ct = loadJuicyPNG path
+  where
+    path = "images/" ++ show (charSex ct) ++ show (charRace ct) ++ show (charClass ct) ++ ".png"
+
 data Screen = Screen
-  { screenPanel :: Panel Character
-  , screenChar  :: Maybe Character
+  { screenPanel   :: Panel Character
+  , screenChar    :: Maybe Character
+  , screenImages  :: Images
   }
 
 updateScreenPanel :: (Panel Character -> Panel Character) -> Screen -> Screen
@@ -26,50 +76,29 @@ updateScreenPanel f screen = screen
   where
     newPanel = f (screenPanel screen)
 
-initScreen :: Screen
-initScreen = Screen
-  { screenPanel = character
-  , screenChar  = readPanel character
-  }
+initScreen :: IO Screen
+initScreen = do
+  images <- loadImages
+  return Screen
+    { screenPanel   = character images
+    , screenChar    = readPanel (character images)
+    , screenImages  = images
+    }
 
-data Race
-  = Human
-  | Elf
-  | Orc
-  deriving (Show, Bounded, Enum)
-
-data Class
-  = Warrior
-  | Hunter
-  | Priest
-  | Mage
-  deriving (Show, Bounded, Enum)
-
-data Character = Character
-  { charName      :: String
-  , charRace      :: Race
-  , charClass     :: Class
-  , charSkinTone  :: Float
-  , charAttrs     :: Attrs
-  }
-
-data Attrs = Attrs
-  { attrStrength  :: Int
-  , attrDexterity :: Int
-  , attrVitality  :: Int
-  , attrEnergy    :: Int
-  }
-
-character :: Panel Character
-character = Character
-  <$> selector "Name" (color white . centeredText) ["John", "Jane"]
-  <*> selector_ "Race"
-  <*> selector_ "Class"
+character :: Images -> Panel Character
+character images = Character
+  <$> characterType images
   <*> skinTone
   <*> attrs
 
+characterType :: Images -> Panel CharType
+characterType images = CharType
+  <$> selector "Sex"    (imgSexName   images) allSexes
+  <*> selector "Race"   (imgRaceName  images) allRaces
+  <*> selector "Class"  (imgClassName images) allClasses
+
 skinTone :: Panel Float
-skinTone = fmap g (slider "Skin tone" 0 n white)
+skinTone = fmap g (slider "Skin tone" 0 n (greyN 0.5))
   where
     n = 1000
     g i = fromIntegral i / fromIntegral n
@@ -88,121 +117,25 @@ attrs = validatePanel ((<= 10) . attrsTotal) attrsPanel
 
 drawScreen :: Screen -> Picture
 drawScreen screen = pictures
-  [ uncurry translate panelOffset (drawPanel (screenPanel screen))
-  , uncurry translate charOffset (foldMap drawCharacter (screenChar screen))
+  [ uncurry translate charOffset (foldMap drawCharacter (screenChar screen))
+  , uncurry translate panelOffset (drawPanel (imgFieldName (screenImages screen)) (screenPanel screen))
   ]
-
-drawCharacter :: Character -> Picture
-drawCharacter c = scale charSize charSize (pictures
-  [ color (charSkinColor c) drawBody
-  , drawClassClothes (charClass c)
-  ])
-
--- | Тело человека с головой.
-drawBody :: Picture
-drawBody = pictures
-  -- голова
-  [ translate 0 11 (thickCircle 4.5 9)
-  -- туловище
-  , polygon [ (-11, 0), (-11, -42), (11, -42), (11, 0) ]
-  -- левое плечо
-  , polygon [ (-11, -10), (-11, -15), (-21, -15), (-21, -10) ]
-  , translate (-11) (-10) (thickArc 90 180 5 10)
-  -- левая рука
-  , polygon [ (-21, -15), (-21, -39), (-13, -39), (-13, -15) ]
-  , translate (-17) (-39) (thickCircle 2 4)
-  -- правое плечо
-  , polygon [ (11, -10), (11, -15), (21, -15), (21, -10) ]
-  , translate 11 (-10) (thickArc 0 90 5 10)
-  -- правая рука
-  , polygon [ (21, -15), (21, -39), (13, -39), (13, -15) ]
-  , translate 17 (-39) (thickCircle 2 4)
-  -- левая нога
-  , polygon [ (-11, -42), (-11, -82), (-1, -82), (-1, -42) ]
-  , translate (-6) (-82) (thickCircle 2.5 5)
-  -- правая нога
-  , polygon [ (11, -42), (11, -82), (1, -82), (1, -42) ]
-  , translate 6 (-82) (thickCircle 2.5 5)
-  ]
-
-drawClassClothes :: Class -> Picture
-drawClassClothes Warrior  = drawWarriorArmor
-drawClassClothes Hunter   = drawHunterArmor
-drawClassClothes Priest   = drawPriestClothes
-drawClassClothes Mage     = drawMageClothes
-
-drawWarriorArmor :: Picture
-drawWarriorArmor = pictures
-  [ color (dark orange) drawPants
-  , color (greyN 0.5) drawArmor
-  ]
-
-drawHunterArmor :: Picture
-drawHunterArmor = pictures
-  [ color (dark (mixColors 3 1 orange green)) drawPants
-  , color (dark (mixColors 1 3 orange green)) drawArmor
-  ]
-
-drawArmor :: Picture
-drawArmor = pictures
-  -- броня
-  [ polygon [ (-11.5, 0), (-11.5, -42.5), (11.5, -42.5), (11.5, 0) ]
-  -- левый наплечник
-  , polygon [ (-11, -10), (-11, -15), (-23, -15), (-23, -10) ]
-  , translate (-11) (-10) (thickArc 90 180 6 12)
-  -- правый наплечник
-  , polygon [ (11, -10), (11, -15), (23, -15), (23, -10) ]
-  , translate 11 (-10) (thickArc 0 90 6 12)
-  ]
-
-drawPants :: Picture
-drawPants = pictures
-  [ polygon [ (-11.5, -41), (-11.5, -45), (11.5, -45), (11.5, -41) ]
-  -- левая нога
-  , polygon [ (-11.5, -42), (-11.5, -72), (-0.5, -72), (-0.5, -42) ]
-  -- правая нога
-  , polygon [ (11.5, -42), (11.5, -72), (0.5, -72), (0.5, -42) ]
-  ]
-
-drawMageClothes :: Picture
-drawMageClothes = color (dark magenta) (drawRobe <> hood)
   where
-    hood = pictures
-      -- капюшон
-      [ translate 0 11 (thickArc 0 180 8 4)
-      , polygon [ (-10, 11), (-8.5, 0), (-4, 0), (-6, 11) ]
-      , polygon [ (10, 11), (8.5, 0), (4, 0), (6, 11) ]
-      ]
-
-drawRobe :: Picture
-drawRobe = pictures
-  -- туловище
-  [ polygon [ (-11, 0), (-14, -72), (14, -72), (11, 0) ]
-  -- левое плечо
-  , polygon [ (-11, -10), (-11, -15), (-21, -15), (-21, -10) ]
-  , translate (-11) (-10) (thickArc 90 180 5 10)
-  -- правое плечо
-  , polygon [ (11, -10), (11, -15), (21, -15), (21, -10) ]
-  , translate 11 (-10) (thickArc 0 90 5 10)
-  -- левая рука
-  , polygon [ (-21, -15), (-21.5, -35), (-12.5, -35), (-13, -15) ]
-  -- правая рука
-  , polygon [ (21, -15), (21.5, -35), (12.5, -35), (13, -15) ]
-  ]
-
-drawPriestClothes :: Picture
-drawPriestClothes = color (mixColors 1 1 yellow white) drawRobe
+    drawCharacter c = scale charSize charSize (drawSkin c <> drawCharType c)
+    drawCharType = imgCharType (screenImages screen) . charType
+    drawSkin c = color (charSkinColor c)
+      (polygon [ (-290, -290), (-290, 290), (290, 290), (290, -290) ])
 
 charSkinColor :: Character -> Color
 charSkinColor c = mixColors (1 - t) t darkSkinColor lightSkinColor
   where
     t = charSkinTone c
-    (darkSkinColor, lightSkinColor) = raceSkinColorRange (charRace c)
+    (darkSkinColor, lightSkinColor) = raceSkinColorRange (charRace (charType c))
 
 raceSkinColorRange :: Race -> (Color, Color)
-raceSkinColorRange Human = (makeColorI 141 85 36 255, makeColorI 255 219 172 255)
-raceSkinColorRange Elf   = (makeColorI 85 36 141 255, makeColorI 219 172 255 255)
-raceSkinColorRange Orc   = (makeColorI 85 141 36 255, makeColorI 219 255 172 255)
+raceSkinColorRange Human = (makeColorI 255 219 172 255, makeColorI 141 85 36 255)
+raceSkinColorRange Elf   = (makeColorI 219 172 255 255, makeColorI 85 36 141 255)
+raceSkinColorRange Orc   = (makeColorI 219 255 172 255, makeColorI 85 141 36 255)
 
 handleScreen :: Event -> Screen -> Screen
 handleScreen = updateScreenPanel . handlePanel . uncurry translateMouse (- panelOffset)
@@ -214,14 +147,14 @@ screenWidth :: Num a => a
 screenWidth = 1200
 
 screenHeight :: Num a => a
-screenHeight = 675
+screenHeight = 650
 
 charSize :: Float
-charSize = 3
+charSize = 0.017 * fieldHeight
 
 panelOffset :: (Float, Float)
-panelOffset = (-200, 150)
+panelOffset = (-fieldWidth / 2, (panelHeight (character undefined) - fieldHeight) / 2)
 
 charOffset :: (Float, Float)
-charOffset = (150, 100)
+charOffset = (fieldWidth, 0)
 

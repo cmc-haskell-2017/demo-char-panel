@@ -5,13 +5,16 @@ module CharSelect.Panel (
   handlePanel,
   validatePanel,
   readPanel,
+  panelHeight,
+  panelFieldNames,
 
   slider,
   selector,
-  selector_,
 
-  centeredText,
   translateMouse,
+
+  fieldHeight,
+  fieldWidth,
 ) where
 
 import Graphics.Gloss.Interface.Pure.Game
@@ -71,6 +74,9 @@ panelHeight panel = fromIntegral n * fieldHeight
   where
     n = length (panelFields panel)
 
+panelFieldNames :: Panel a -> [String]
+panelFieldNames = map fst . panelFields
+
 toSlider :: Field -> Maybe Slider
 toSlider (FieldSlider s) = Just s
 toSlider _ = Nothing
@@ -104,22 +110,14 @@ selector name drawValue values = mkField name
   (FieldSelector (initSelector (map drawValue values)))
   (fmap (\s -> values !! selectorIndex s) . toSelector)
 
-selector_ :: (Show a, Bounded a, Enum a) => String -> Panel a
-selector_ name = selector name (color white . centeredText . show) [minBound..maxBound]
+drawPanel :: (String -> Picture) -> Panel a -> Picture
+drawPanel drawFieldName panel = pictures (zipWith (drawFieldN drawFieldName) [0..] (panelFields panel))
 
-drawPanel :: Panel a -> Picture
-drawPanel panel = pictures (zipWith drawFieldN [0..] (panelFields panel))
+drawFieldN :: (String -> Picture) -> Float -> (String, Field) -> Picture
+drawFieldN drawFieldName n = translate 0 (-fieldHeight * n) . drawNamedField drawFieldName
 
-drawFieldN :: Float -> (String, Field) -> Picture
-drawFieldN n = translate 0 (-fieldHeight * n) . drawNamedField
-
-drawNamedField :: (String, Field) -> Picture
-drawNamedField (name, field) = drawFieldName name <> drawField field
-
-drawFieldName :: String -> Picture
-drawFieldName = translate dx 0 . color white . leftText
-  where
-    dx = - 1.5 * fieldWidth
+drawNamedField :: (String -> Picture) -> (String, Field) -> Picture
+drawNamedField drawFieldName (name, field) = translate (- fieldWidth) 0 (drawFieldName name) <> drawField field
 
 drawField :: Field -> Picture
 drawField (FieldSlider s) = drawSlider s
@@ -150,7 +148,7 @@ drawSlider :: Slider -> Picture
 drawSlider s = pictures
   [ color (greyN 0.5) (line [ (-w/2, 0), (w/2, 0) ] )
   , color (sliderColor s) (polygon [ (-w/2, -r/4), (dx, -r/4), (dx, r/4), (-w/2, r/4) ])
-  , color white (translate dx 0 (thickCircle (r/2) r))
+  , translate dx 0 (thickCircle (r/2) r)
   ]
   where
     dx = w * (sliderPosition s - 0.5)
@@ -170,31 +168,12 @@ drawSelector s = pictures
     , translate dx 0 arrow ]
   where
     selected = selectorPictures s !! selectorIndex s
-    arrow = color white (pictures
+    arrow = pictures
       [ polygon [ (w/5, 0), (w, 0), (0,  w/2) ]
       , polygon [ (w/5, 0), (w, 0), (0, -w/2) ]
-      ])
+      ]
     w = selectorArrowWidth
     dx = selectorWidth / 2 - w
-
--- | Центрированный текст, отмасштабированный таким образом,
--- чтобы хорошо смотреться в элементе выбора.
-centeredText :: String -> Picture
-centeredText s = translate dx dy (scale z z (text s))
-  where
-    z = selectorWidth * 0.0008
-    w = 80 * z
-    dx = - w * fromIntegral (length s) / 2
-    dy = - w / 2
-
--- | Центрированный текст, отмасштабированный таким образом,
--- чтобы хорошо смотреться в элементе выбора.
-leftText :: String -> Picture
-leftText s = translate 0 dy (scale z z (text s))
-  where
-    z = selectorWidth * 0.001
-    w = 80 * z
-    dy = - w / 2
 
 handleSlider :: Event -> Slider -> Slider
 handleSlider (EventKey (MouseButton LeftButton) Down _ mouse) = selectSlider mouse
@@ -247,7 +226,7 @@ selectNext :: Selector -> Selector
 selectNext s = s { selectorIndex = (selectorIndex s + 1) `mod` length (selectorPictures s) }
 
 fieldHeight :: Float
-fieldHeight = 50
+fieldHeight = 60
 
 fieldWidth :: Float
 fieldWidth = fieldHeight * 5
@@ -256,7 +235,7 @@ sliderLength :: Float
 sliderLength = fieldWidth
 
 sliderBallRadius :: Float
-sliderBallRadius = 9
+sliderBallRadius = fieldHeight / 6
 
 selectorWidth :: Float
 selectorWidth = fieldWidth
