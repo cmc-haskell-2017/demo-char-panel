@@ -43,15 +43,19 @@ data Attrs = Attrs
   , attrEnergy    :: Int  -- ^ Энергия.
   }
 
+-- | Список всех полов.
 allSexes :: [Sex]
 allSexes = [minBound..maxBound]
 
+-- | Список всех рас.
 allRaces :: [Race]
 allRaces = [minBound..maxBound]
 
+-- | Список всех классов.
 allClasses :: [Class]
 allClasses = [minBound..maxBound]
 
+-- | Список всех типов персонажей.
 allCharTypes :: [CharType]
 allCharTypes = CharType
   <$> allSexes

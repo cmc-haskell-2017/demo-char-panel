@@ -7,7 +7,10 @@ import Graphics.Gloss.Juicy
 
 import CharSelect.Character
 import CharSelect.Panel
+import CharSelect.Panel.Field (fieldWidth, fieldHeight)
+import CharSelect.Utils
 
+-- | Запустить экран выбора персонажа.
 charSelectScreen :: IO ()
 charSelectScreen = do
   screen <- initScreen
@@ -17,15 +20,17 @@ charSelectScreen = do
     bgColor = white   -- цвет фона
     fps     = 60      -- кол-во кадров в секунду
 
+-- | Изображения.
 data Images = Images
-  { imgBackground :: Picture
-  , imgFieldName  :: String -> Picture
-  , imgSexName    :: Sex -> Picture
-  , imgRaceName   :: Race -> Picture
-  , imgClassName  :: Class -> Picture
-  , imgCharType   :: CharType -> Picture
+  { imgBackground :: Picture              -- ^ Фон.
+  , imgFieldName  :: String -> Picture    -- ^ Изображения имён полей.
+  , imgSexName    :: Sex -> Picture       -- ^ Изображения полов.
+  , imgRaceName   :: Race -> Picture      -- ^ Изображения рас.
+  , imgClassName  :: Class -> Picture     -- ^ Изображения классов.
+  , imgCharType   :: CharType -> Picture  -- ^ Изображения разных типов персонажей.
   }
 
+-- | Загрузка изображений.
 loadImages :: IO Images
 loadImages = Images
   <$> fmap fold (loadJuicyJPG "images/background.jpeg")
@@ -35,14 +40,17 @@ loadImages = Images
   <*> loadAll classNameImage  allClasses
   <*> loadAll charTypeImage   allCharTypes
 
+-- | Загрузка изображения для надписи.
 loadTextImage :: String -> IO (Maybe Picture)
 loadTextImage s = fmap (fmap (translate 0 10 . scale 0.14 0.14)) (loadJuicyPNG path)
   where
     path = "images/" ++ s ++ ".png"
 
+-- | Список всех имён полей для панели настроек персонажа.
 allFieldNames :: [String]
 allFieldNames = panelFieldNames (character (Images mempty mempty mempty mempty mempty mempty))
 
+-- | Загрузить все изображения для списка значений.
 loadAll :: Eq a => (a -> IO (Maybe Picture)) -> [a] -> IO (a -> Picture)
 loadAll load xs = indexEnum <$> sequenceA (map load xs)
   where
@@ -50,26 +58,32 @@ loadAll load xs = indexEnum <$> sequenceA (map load xs)
       Nothing -> blank
       Just mp -> fold mp
 
+-- | Загрузить изображение пола персонажа.
 sexNameImage :: Sex -> IO (Maybe Picture)
 sexNameImage = loadTextImage . show
 
+-- | Загрузить изображение расы персонажа.
 raceNameImage :: Race -> IO (Maybe Picture)
 raceNameImage = loadTextImage . show
 
+-- | Загрузить изображение класса персонажа.
 classNameImage :: Class -> IO (Maybe Picture)
 classNameImage = loadTextImage . show
 
+-- | Загрузить изображение персонажа.
 charTypeImage :: CharType -> IO (Maybe Picture)
 charTypeImage ct = loadJuicyPNG path
   where
     path = "images/" ++ show (charSex ct) ++ show (charRace ct) ++ show (charClass ct) ++ ".png"
 
+-- | Экран выбора персонажа.
 data Screen = Screen
-  { screenPanel   :: Panel Character
-  , screenChar    :: Maybe Character
-  , screenImages  :: Images
+  { screenPanel   :: Panel Character  -- ^ Панель с настройками.
+  , screenChar    :: Maybe Character  -- ^ Персонаж.
+  , screenImages  :: Images           -- ^ Изображения.
   }
 
+-- | Обновить панель на экране.
 updateScreenPanel :: (Panel Character -> Panel Character) -> Screen -> Screen
 updateScreenPanel f screen = screen
   { screenPanel = newPanel
@@ -78,6 +92,8 @@ updateScreenPanel f screen = screen
   where
     newPanel = f (screenPanel screen)
 
+-- | Инициализировать экран.
+-- При инициализации загружаются все необходимые изображения.
 initScreen :: IO Screen
 initScreen = do
   images <- loadImages
@@ -87,29 +103,35 @@ initScreen = do
     , screenImages  = images
     }
 
+-- | Панель настроек персонажа.
 character :: Images -> Panel Character
 character images = Character
-  <$> characterType images
-  <*> skinTone
-  <*> attrs
+  <$> characterType images  -- настройки типа персонажа
+  <*> skinTone              -- цвет кожи
+  <*> attrs                 -- атрибуты
 
+-- | Настройки пола, расы и класса.
 characterType :: Images -> Panel CharType
 characterType images = CharType
   <$> selector "Sex"    (imgSexName   images) allSexes
   <*> selector "Race"   (imgRaceName  images) allRaces
   <*> selector "Class"  (imgClassName images) allClasses
 
+-- | Поле настройки цвета кожи.
 skinTone :: Panel Float
 skinTone = fmap g (slider "Skin tone" 0 n (greyN 0.5))
   where
     n = 1000
     g i = fromIntegral i / fromIntegral n
 
+-- | Сумма значений атрибутов.
 attrsTotal :: Attrs -> Int
 attrsTotal (Attrs s d v e) = s + d + v + e
 
+-- | Настройки атрибутов персонажа (сила, ловкость, здоровье и энергия).
+-- Сумма значений атрибутов не может превышать 'maxAttrsTotal'.
 attrs :: Panel Attrs
-attrs = validatePanel ((<= 10) . attrsTotal) attrsPanel
+attrs = constrainPanel ((<= maxAttrsTotal) . attrsTotal) attrsPanel
   where
     attrsPanel = Attrs
       <$> slider "Strength"   0 10 orange
@@ -117,6 +139,7 @@ attrs = validatePanel ((<= 10) . attrsTotal) attrsPanel
       <*> slider "Vitality"   0 10 red
       <*> slider "Energy"     0 10 blue
 
+-- | Отрисовка экрана выбора персонажа.
 drawScreen :: Screen -> Picture
 drawScreen screen = pictures
   [ scale (1200 / 1920) (1200 / 1920) (imgBackground (screenImages screen))
@@ -129,35 +152,49 @@ drawScreen screen = pictures
     drawSkin c = color (charSkinColor c)
       (polygon [ (-290, -390), (-290, 310), (290, 310), (290, -390) ])
 
+-- | Цвет персонажа.
 charSkinColor :: Character -> Color
 charSkinColor c = mixColors (1 - t) t darkSkinColor lightSkinColor
   where
     t = charSkinTone c
     (darkSkinColor, lightSkinColor) = raceSkinColorRange (charRace (charType c))
 
+-- | Диапазон цветов кожи для каждой расы.
 raceSkinColorRange :: Race -> (Color, Color)
 raceSkinColorRange Human = (makeColorI 255 219 172 255, makeColorI 141 85 36 255)
 raceSkinColorRange Elf   = (makeColorI 219 172 255 255, makeColorI 85 36 141 255)
 raceSkinColorRange Orc   = (makeColorI 219 255 172 255, makeColorI 85 141 36 255)
 
+-- | Обработка событий экрана выбора персонажа.
 handleScreen :: Event -> Screen -> Screen
-handleScreen = updateScreenPanel . handlePanel . uncurry translateMouse (- panelOffset)
+handleScreen = updateScreenPanel . handlePanel . untranslateEvent panelOffset
 
+-- | Обновление экрана.
+-- Поскольку все изменения происходят по событиям,
+-- эта функция ничего не делает.
 updateScreen :: Float -> Screen -> Screen
 updateScreen _ = id
 
+-- | Ширина экрана.
 screenWidth :: Num a => a
 screenWidth = 1200
 
+-- | Высота экрана.
 screenHeight :: Num a => a
 screenHeight = 650
 
+-- | Масштаб отрисовки персонажа.
 charSize :: Float
 charSize = 1200 / 1920
 
+-- | Положение панели настроек.
 panelOffset :: (Float, Float)
 panelOffset = (-fieldWidth / 2, (panelHeight (character undefined) - fieldHeight) / 2)
 
+-- | Положение персонажа.
 charOffset :: (Float, Float)
-charOffset = (fieldWidth, 0)
+charOffset = (300, 0)
 
+-- | Максимальное суммарное значение атрибутов.
+maxAttrsTotal :: Int
+maxAttrsTotal = 10

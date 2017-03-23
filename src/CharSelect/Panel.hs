@@ -1,50 +1,17 @@
 {-# LANGUAGE DeriveFunctor #-}
-module CharSelect.Panel (
-  Panel,
-  drawPanel,
-  handlePanel,
-  validatePanel,
-  readPanel,
-  panelHeight,
-  panelFieldNames,
-
-  slider,
-  selector,
-
-  translateMouse,
-
-  fieldHeight,
-  fieldWidth,
-) where
+module CharSelect.Panel where
 
 import Graphics.Gloss.Interface.Pure.Game
 import Data.Maybe (maybe)
 import Data.Monoid
 
-data Field
-  = FieldSlider   Slider
-  | FieldSelector Selector
+import CharSelect.Panel.Field
+import CharSelect.Utils
 
--- | Слайдер.
-data Slider = Slider
-  { sliderMin       :: Int    -- ^ Минимальное значение слайдера.
-  , sliderMax       :: Int    -- ^ Максимальное значение слайдера.
-  , sliderValue     :: Int    -- ^ Текущее значение слайдера.
-  , sliderSelected  :: Bool   -- ^ Выбран ли слайдер?
-  , sliderColor     :: Color  -- ^ Цвет слайдера.
-  }
-
--- | Элемент выбора.
-data Selector = Selector
-  { selectorPictures  :: [Picture]  -- ^ Изображения различных вариантов.
-  , selectorIndex     :: Int        -- ^ Номер выбранного варианта.
-  }
-
-type Fields = [(String, Field)]
-
+-- | Панель с полями ввода.
 data Panel a = Panel
-  { panelFields  :: Fields
-  , panelValue   :: Fields -> Maybe a
+  { panelFields  :: Fields              -- ^ Поля ввода.
+  , panelValue   :: Fields -> Maybe a   -- ^ Функция чтения поля.
   } deriving (Functor)
 
 instance Applicative Panel where
@@ -55,100 +22,63 @@ instance Applicative Panel where
       f = f1 <> f2
       v fs = v1 fs <*> v2 fs
 
-translateMouse :: Float -> Float -> Event -> Event
-translateMouse dx dy (EventKey k ks m (x, y)) = (EventKey k ks m (x + dx, y + dy))
-translateMouse dx dy (EventMotion (x, y)) = EventMotion (x + dx, y + dy)
-translateMouse _ _ e = e
-
-mkField :: String -> Field -> (Field -> Maybe a) -> Panel a
-mkField name field value = Panel
-  { panelFields = [(name, field)]
-  , panelValue  = maybe Nothing value . lookup name
-  }
-
+-- | Считать значение панели.
 readPanel :: Panel a -> Maybe a
 readPanel = panelValue <*> panelFields
 
+-- | Определить высоту панели.
 panelHeight :: Panel a -> Float
 panelHeight panel = fromIntegral n * fieldHeight
   where
     n = length (panelFields panel)
 
+-- | Имена полей панели.
 panelFieldNames :: Panel a -> [String]
 panelFieldNames = map fst . panelFields
 
-toSlider :: Field -> Maybe Slider
-toSlider (FieldSlider s) = Just s
-toSlider _ = Nothing
-
-initSlider :: Int -> Int -> Color -> Slider
-initSlider minValue maxValue c = Slider
-  { sliderMin       = minValue
-  , sliderMax       = maxValue
-  , sliderValue     = minValue
-  , sliderSelected  = False
-  , sliderColor     = c
+-- | Создать панель с единственным полем.
+mkField
+  :: String             -- ^ Уникальное имя поля.
+  -> Field              -- ^ Поле ввода.
+  -> (Field -> Maybe a) -- ^ Функция чтения поля.
+  -> Panel a
+mkField name field value = Panel
+  { panelFields = [(name, field)]
+  , panelValue  = maybe Nothing value . lookup name
   }
 
-slider :: String -> Int -> Int -> Color -> Panel Int
+-- | Создать панель с одним полем-слайдером.
+slider
+  :: String   -- ^ Имя поля.
+  -> Int      -- ^ Минимальное значение.
+  -> Int      -- ^ Максимальное значение.
+  -> Color    -- ^ Цвет слайдера.
+  -> Panel Int
 slider name minValue maxValue c = mkField name
   (FieldSlider (initSlider minValue maxValue c))
   (fmap sliderValue . toSlider)
 
-toSelector :: Field -> Maybe Selector
-toSelector (FieldSelector s) = Just s
-toSelector _ = Nothing
-
-initSelector :: [Picture] -> Selector
-initSelector ps = Selector
-  { selectorPictures = ps
-  , selectorIndex    = 0
-  }
-
-selector :: String -> (a -> Picture) -> [a] -> Panel a
+-- | Создать панель с одним полем выбора.
+selector
+  :: String           -- ^ Название поля.
+  -> (a -> Picture)   -- ^ Функция отображения вариантов.
+  -> [a]              -- ^ Список вариантов.
+  -> Panel a
 selector name drawValue values = mkField name
   (FieldSelector (initSelector (map drawValue values)))
   (fmap (\s -> values !! selectorIndex s) . toSelector)
 
-drawPanel :: (String -> Picture) -> Panel a -> Picture
+-- | Отобразить панель.
+drawPanel
+  :: (String -> Picture)  -- ^ Функция отрисовки имён полей.
+  -> Panel a              -- ^ Панель.
+  -> Picture
 drawPanel drawFieldName panel = pictures
   [ drawPanelBackground (panelHeight panel)
-  , pictures (zipWith (drawFieldN drawFieldName) [0..] (panelFields panel))
+  , pictures (mapNamedFieldsWithOffset (drawFieldWithOffset drawFieldName) panel)
   ]
 
-roundedRect :: Color -> Color -> Float -> Float -> Float -> Float -> Picture
-roundedRect innerColor borderColor w h r d = pictures
-  [ color innerColor inner
-  , color borderColor border
-  ]
-  where
-    border = pictures
-      [ rect (-w/2 - d/2, -h/2 + r) (-w/2 + d/2, h/2 - r)
-      , rect ( w/2 - d/2, -h/2 + r) ( w/2 + d/2, h/2 - r)
-      , rect ( w/2 - r, -h/2 + d/2) (-w/2 + r, -h/2 - d/2)
-      , rect ( w/2 - r,  h/2 + d/2) (-w/2 + r,  h/2 - d/2)
-      , translate (-w/2 + r) ( h/2 - r) (rotate 270 cornerBorder)
-      , translate (-w/2 + r) (-h/2 + r) (rotate 180 cornerBorder)
-      , translate ( w/2 - r) (-h/2 + r) (rotate 90 cornerBorder)
-      , translate ( w/2 - r) ( h/2 - r) cornerBorder
-      ]
-
-    inner = pictures
-      [ rect (-w/2, -h/2 + r) (-w/2 + r,  h/2 - r)
-      , rect ( w/2, -h/2 + r) ( w/2 - r,  h/2 - r)
-      , rect (-w/2 + r, -h/2) ( w/2 - r, -h/2 + r)
-      , rect (-w/2 + r,  h/2) ( w/2 - r,  h/2 - r)
-      , rect (-w/2 + r, -h/2 + r) (w/2 - r, h/2 - r)
-      , translate (-w/2 + r) ( h/2 - r) (rotate 270 corner)
-      , translate (-w/2 + r) (-h/2 + r) (rotate 180 corner)
-      , translate ( w/2 - r) (-h/2 + r) (rotate 90 corner)
-      , translate ( w/2 - r) ( h/2 - r) corner
-      ]
-
-    rect (l, b) (r, t) = polygon [ (l, b), (l, t), (r, t), (r, b) ]
-    corner = thickArc 0 90 (r/2) r
-    cornerBorder = thickArc 0 90 r d
-
+-- | Отобразить рамку и фон панели.
 drawPanelBackground :: Float -> Picture
 drawPanelBackground h = translate (-0.3 * fw) (fh/2 - h/2)
   (roundedRect (withAlpha 0.7 white) (greyN 0.7) (2 * fw) (h + fh) (0.1 * fw) (0.02 * fw))
@@ -156,132 +86,34 @@ drawPanelBackground h = translate (-0.3 * fw) (fh/2 - h/2)
     fh = fieldHeight
     fw = fieldWidth
 
-drawFieldN :: (String -> Picture) -> Float -> (String, Field) -> Picture
-drawFieldN drawFieldName n = translate 0 (-fieldHeight * n) . drawNamedField drawFieldName
+-- | Отобразить поле с заданным отступом.
+drawFieldWithOffset
+  :: (String -> Picture)  -- ^ Функция отрисовки имени поля.
+  -> Float                -- ^ Отступ по вертикали.
+  -> NamedField           -- ^ Именованное поле.
+  -> Picture
+drawFieldWithOffset drawFieldName offsetY = translate 0 offsetY . drawNamedField drawFieldName
 
-drawNamedField :: (String -> Picture) -> (String, Field) -> Picture
-drawNamedField drawFieldName (name, field) = translate (- fieldWidth) 0 (drawFieldName name) <> drawField field
-
-drawField :: Field -> Picture
-drawField (FieldSlider s) = drawSlider s
-drawField (FieldSelector s) = drawSelector s
-
+-- | Обработка событий панели.
 handlePanel :: Event -> Panel a -> Panel a
 handlePanel e panel = case panelValue panel newFields of
   Nothing -> panel
   Just _  -> panel { panelFields = newFields }
   where
-    newFields = zipWith (fmap . handleFieldN e) [0..] (panelFields panel)
+    newFields = mapNamedFieldsWithOffset (fmap . handleFieldWithOffset e) panel
 
-validatePanel :: (a -> Bool) -> Panel a -> Panel a
-validatePanel p panel = panel { panelValue = newValue }
+-- | Обработать каждое поле с его отступом по вертикали.
+mapNamedFieldsWithOffset :: (Float -> NamedField -> a) -> Panel b -> [a]
+mapNamedFieldsWithOffset f = zipWith f [0, -fieldHeight..] . panelFields
+
+-- | Добавить ограничение на возможные значения панели.
+constrainPanel :: (a -> Bool) -> Panel a -> Panel a
+constrainPanel p panel = panel { panelValue = newValue }
   where
     newValue fs = case panelValue panel fs of
       Just x | p x -> Just x
       _ -> Nothing
 
-handleFieldN :: Event -> Float -> Field -> Field
-handleFieldN e n = handleField (translateMouse 0 (fieldHeight * n) e)
-
-handleField :: Event -> Field -> Field
-handleField e (FieldSlider s) = FieldSlider (handleSlider e s)
-handleField e (FieldSelector s) = FieldSelector (handleSelector e s)
-
-drawSlider :: Slider -> Picture
-drawSlider s = pictures
-  [ color (greyN 0.5) (line [ (-w/2, 0), (w/2, 0) ] )
-  , color (sliderColor s) (polygon [ (-w/2, -r/4), (dx, -r/4), (dx, r/4), (-w/2, r/4) ])
-  , translate dx 0 (thickCircle (r/2) r)
-  ]
-  where
-    dx = w * (sliderPosition s - 0.5)
-    w = sliderLength
-    r = sliderBallRadius
-
-sliderPosition :: Slider -> Float
-sliderPosition s = x / w
-  where
-    x = fromIntegral (sliderValue s - sliderMin s)
-    w = fromIntegral (sliderMax s - sliderMin s)
-
-drawSelector :: Selector -> Picture
-drawSelector s = pictures
-    [ translate (-dx) 0 (rotate 180 arrow)
-    , selected
-    , translate dx 0 arrow ]
-  where
-    selected = selectorPictures s !! selectorIndex s
-    arrow = pictures
-      [ polygon [ (w/5, 0), (w, 0), (0,  w/2) ]
-      , polygon [ (w/5, 0), (w, 0), (0, -w/2) ]
-      ]
-    w = selectorArrowWidth
-    dx = selectorWidth / 2 - w
-
-handleSlider :: Event -> Slider -> Slider
-handleSlider (EventKey (MouseButton LeftButton) Down _ mouse) = selectSlider mouse
-handleSlider (EventKey (MouseButton LeftButton) Up _ _) = unselectSlider
-handleSlider (EventMotion (x, _)) = moveSlider (0.5 + x / sliderLength)
-handleSlider _ = id
-
-selectSlider :: Point -> Slider -> Slider
-selectSlider (mx, my) s
-  | onBall    = s { sliderSelected = True }
-  | otherwise = s
-  where
-    onBall = (mx - sliderLength * (x - 0.5))^2 + my^2 <= sliderBallRadius^2
-    x = sliderPosition s
-
-unselectSlider :: Slider -> Slider
-unselectSlider s = s { sliderSelected = False }
-
-moveSlider :: Float -> Slider -> Slider
-moveSlider x s
-  | sliderSelected s = s { sliderValue = newSliderValue }
-  | otherwise = s
-  where
-    i = sliderMin s + round (x * fromIntegral (sliderMax s - sliderMin s))
-    newSliderValue = max (sliderMin s) (min (sliderMax s) i)
-
-handleSelector :: Event -> Selector -> Selector
-handleSelector (EventKey (MouseButton LeftButton) Down _ mouse) = handleSelectorClick mouse
-handleSelector _ = id
-
-handleSelectorClick :: Point -> Selector -> Selector
-handleSelectorClick (mx, my) s
-  | onLeftArrow  = selectPrevious s
-  | onRightArrow = selectNext s
-  | otherwise    = s
-  where
-    w  = selectorArrowWidth
-    sw = selectorWidth
-    onLeftArrow = and
-      [ -w/2 <= my && my <= w/2
-      , -sw/2 <= mx && mx <= -sw/2 + w ]
-    onRightArrow = and
-      [ -w/2 <= my && my <= w/2
-      , sw/2 - w <= mx && mx <= sw/2]
-
-selectPrevious :: Selector -> Selector
-selectPrevious s = s { selectorIndex = (selectorIndex s - 1) `mod` length (selectorPictures s) }
-
-selectNext :: Selector -> Selector
-selectNext s = s { selectorIndex = (selectorIndex s + 1) `mod` length (selectorPictures s) }
-
-fieldHeight :: Float
-fieldHeight = 60
-
-fieldWidth :: Float
-fieldWidth = fieldHeight * 5
-
-sliderLength :: Float
-sliderLength = fieldWidth
-
-sliderBallRadius :: Float
-sliderBallRadius = fieldHeight / 6
-
-selectorWidth :: Float
-selectorWidth = fieldWidth
-
-selectorArrowWidth :: Float
-selectorArrowWidth = selectorWidth / 10
+-- | Обработать событие для одного поля с заданным отступом.
+handleFieldWithOffset :: Event -> Float -> Field -> Field
+handleFieldWithOffset e offsetY = handleField (untranslateEvent (0, offsetY) e)
