@@ -103,41 +103,52 @@ initScreen = do
     , screenImages  = images
     }
 
+--------------------------------------------------------------------------------
+-- * Задание
+--
+-- Измените реализацию 'character', чтобы включать
+-- поля пола, класса, настройки цвета кожи, силы и ловкости.
+--
+-- Для этого реализуйте подпанели 'characterType', 'skinTone' и 'attrs',
+-- типы для которых объявлены ниже.
+--------------------------------------------------------------------------------
+
 -- | Панель настроек персонажа.
 character :: Images -> Panel Character
-character images = Character
-  <$> characterType images  -- настройки типа персонажа
-  <*> skinTone              -- цвет кожи
-  <*> attrs                 -- атрибуты
+character images = mkCharacter
+  <$> selector "Race" (imgRaceName images) allRaces
+  <*> slider "Vitality" 0 10 red
+  <*> slider "Energy"   0 10 blue
+  where
+    mkCharacter race vitality energy = Character
+      { charType     = CharType Male race NoClass
+      , charSkinTone = 0
+      , charAttrs    = Attrs 0 0 vitality energy
+      }
 
 -- | Настройки пола, расы и класса.
 characterType :: Images -> Panel CharType
-characterType images = CharType
-  <$> selector "Sex"    (imgSexName   images) allSexes
-  <*> selector "Race"   (imgRaceName  images) allRaces
-  <*> selector "Class"  (imgClassName images) allClasses
+-- реализуйте самостоятельно
+-- используйте имена полей "Sex", "Race" и "Class"
+characterType images = pure (CharType Male Human NoClass)
 
 -- | Поле настройки цвета кожи.
+-- Поле может иметь значение от 0 до 1.
 skinTone :: Panel Float
-skinTone = fmap g (slider "Skin tone" 0 n (greyN 0.5))
-  where
-    n = 1000
-    g i = fromIntegral i / fromIntegral n
-
--- | Сумма значений атрибутов.
-attrsTotal :: Attrs -> Int
-attrsTotal (Attrs s d v e) = s + d + v + e
+-- реализуйте самостоятельно
+-- используйте имя поля "Skin tone"
+skinTone = pure 0
 
 -- | Настройки атрибутов персонажа (сила, ловкость, здоровье и энергия).
 -- Сумма значений атрибутов не может превышать 'maxAttrsTotal'.
 attrs :: Panel Attrs
 attrs = constrainPanel ((<= maxAttrsTotal) . attrsTotal) attrsPanel
   where
-    attrsPanel = Attrs
-      <$> slider "Strength"   0 10 orange
-      <*> slider "Dexterity"  0 10 yellow
-      <*> slider "Vitality"   0 10 red
-      <*> slider "Energy"     0 10 blue
+    -- реализуйте самостоятельно
+    -- используйте имена полей "Strength", "Dexterity", "Vitality" и "Energy"
+    attrsPanel = pure (Attrs 0 0 0 0)
+
+--------------------------------------------------------------------------------
 
 -- | Отрисовка экрана выбора персонажа.
 drawScreen :: Screen -> Picture

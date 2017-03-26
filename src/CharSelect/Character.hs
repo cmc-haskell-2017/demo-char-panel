@@ -43,6 +43,10 @@ data Attrs = Attrs
   , attrEnergy    :: Int  -- ^ Энергия.
   }
 
+-- | Сумма значений атрибутов.
+attrsTotal :: Attrs -> Int
+attrsTotal (Attrs s d v e) = s + d + v + e
+
 -- | Список всех полов.
 allSexes :: [Sex]
 allSexes = [minBound..maxBound]
