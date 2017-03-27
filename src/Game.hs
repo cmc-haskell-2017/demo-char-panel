@@ -42,7 +42,8 @@ loadImages = Images
 
 -- | Загрузка изображения для надписи.
 loadTextImage :: String -> IO (Maybe Picture)
-loadTextImage s = fmap (fmap (translate 0 10 . scale 0.14 0.14)) (loadJuicyPNG path)
+loadTextImage s = fmap (translate 0 10 . scale 0.14 0.14)
+  <$> loadJuicyPNG path
   where
     path = "images/" ++ s ++ ".png"
 
@@ -95,13 +96,15 @@ updateScreenPanel f screen = screen
 -- | Инициализировать экран.
 -- При инициализации загружаются все необходимые изображения.
 initScreen :: IO Screen
-initScreen = do
-  images <- loadImages
-  return Screen
-    { screenPanel   = character images
-    , screenChar    = readPanel (character images)
-    , screenImages  = images
-    }
+initScreen = screenWithImages <$> loadImages
+
+-- | Инициализировать экран с заданными изображениями.
+screenWithImages :: Images -> Screen
+screenWithImages images = Screen
+  { screenPanel   = character images
+  , screenChar    = readPanel (character images)
+  , screenImages  = images
+  }
 
 --------------------------------------------------------------------------------
 -- * Задание
