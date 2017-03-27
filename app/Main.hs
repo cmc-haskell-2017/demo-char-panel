@@ -1,6 +1,6 @@
 module Main where
 
-import CharSelect
+import Game
 
 main :: IO ()
-main = charSelectScreen
+main = characterScreen

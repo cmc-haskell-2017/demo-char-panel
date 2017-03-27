@@ -1,4 +1,4 @@
-module CharSelect.Utils where
+module Game.Utils where
 
 import Graphics.Gloss.Interface.Pure.Game
 

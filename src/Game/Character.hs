@@ -1,4 +1,4 @@
-module CharSelect.Character where
+module Game.Character where
 
 -- | Пол персонажа.
 data Sex

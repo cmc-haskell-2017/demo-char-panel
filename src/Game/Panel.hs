@@ -1,12 +1,12 @@
 {-# LANGUAGE DeriveFunctor #-}
-module CharSelect.Panel where
+module Game.Panel where
 
 import Graphics.Gloss.Interface.Pure.Game
 import Data.Maybe (maybe)
 import Data.Monoid
 
-import CharSelect.Panel.Field
-import CharSelect.Utils
+import Game.Panel.Field
+import Game.Utils
 
 -- | Панель с полями ввода.
 data Panel a = Panel

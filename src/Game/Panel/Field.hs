@@ -1,8 +1,8 @@
-module CharSelect.Panel.Field where
+module Game.Panel.Field where
 
 import Graphics.Gloss.Interface.Pure.Game
 
-import CharSelect.Utils
+import Game.Utils
 
 -- | Поля ввода.
 data Field

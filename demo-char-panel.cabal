@@ -1,8 +1,8 @@
-name:                demo-char-select
+name:                demo-char-panel
 version:             0.1
 synopsis:            Экран выбора персонажа для ролевой игры.
 -- description:
-homepage:            https://github.com/cmc-haskell-2017/demo-char-select#readme
+homepage:            https://github.com/cmc-haskell-2017/demo-char-panel#readme
 license:             MIT
 license-file:        LICENSE
 author:              Nickolay Kudasov
@@ -15,25 +15,25 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   exposed-modules:
-    CharSelect
-    CharSelect.Character
-    CharSelect.Panel
-    CharSelect.Panel.Field
-    CharSelect.Utils
+    Game
+    Game.Character
+    Game.Panel
+    Game.Panel.Field
+    Game.Utils
   ghc-options:         -Wall -fno-warn-type-defaults
   build-depends:       base >= 4.7 && < 5
                      , gloss
                      , gloss-juicy
   default-language:    Haskell2010
 
-executable demo-char-select
+executable demo-char-panel
   hs-source-dirs:      app
   main-is:             Main.hs
   ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N
   build-depends:       base
-                     , demo-char-select
+                     , demo-char-panel
   default-language:    Haskell2010
 
 source-repository head
   type:     git
-  location: https://github.com/cmc-haskell-2017/demo-char-select
+  location: https://github.com/cmc-haskell-2017/demo-char-panel

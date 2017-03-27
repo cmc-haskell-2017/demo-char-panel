@@ -1,18 +1,18 @@
-module CharSelect where
+module Game where
 
 import Data.Monoid
 import Data.Foldable
 import Graphics.Gloss.Interface.Pure.Game
 import Graphics.Gloss.Juicy
 
-import CharSelect.Character
-import CharSelect.Panel
-import CharSelect.Panel.Field (fieldWidth, fieldHeight)
-import CharSelect.Utils
+import Game.Character
+import Game.Panel
+import Game.Panel.Field (fieldWidth, fieldHeight)
+import Game.Utils
 
 -- | Запустить экран выбора персонажа.
-charSelectScreen :: IO ()
-charSelectScreen = do
+characterScreen :: IO ()
+characterScreen = do
   screen <- initScreen
   play display bgColor fps screen drawScreen handleScreen updateScreen
   where
