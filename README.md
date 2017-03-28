@@ -9,8 +9,8 @@
 Клонируйте репозиторий:
 
 ```
-git clone https://github.com/cmc-haskell-2017/demo-flappy-lambda.git
-cd demo-flappy-lambda
+git clone https://github.com/cmc-haskell-2017/demo-char-panel.git
+cd demo-char-panel
 ```
 
 Соберите проект при помощи [утилиты Stack](https://www.haskellstack.org):
@@ -23,7 +23,7 @@ stack build
 Собрать проект и запустить игру можно при помощи команды
 
 ```
-stack build && stack exec demo-flappy-lambda
+stack build && stack exec demo-char-panel
 ```
 
 ## Документация
