@@ -2,10 +2,7 @@ module Game.Utils where
 
 import Graphics.Gloss.Interface.Pure.Game
 
--- | Построить прямоугольник с заданными координатами
--- левой нижней и правой верхней вершин.
-rect :: Point -> Point -> Picture
-rect (l, b) (r, t) = polygon [ (l, b), (l, t), (r, t), (r, b) ]
+-- * События
 
 -- | Изменить положение мыши.
 modifyEventMouse :: (Point -> Point) -> Event -> Event
@@ -20,6 +17,13 @@ untranslateEvent v = modifyEventMouse (subtract v)
 -- | Пересчитать положение мыши для масштабированного объекта.
 unscaleEvent :: Float -> Float -> Event -> Event
 unscaleEvent sx sy = modifyEventMouse (\(x, y) -> (x / sx, y / sy))
+
+-- * Отрисовка
+
+-- | Построить прямоугольник с заданными координатами
+-- левой нижней и правой верхней вершин.
+rect :: Point -> Point -> Picture
+rect (l, b) (r, t) = polygon [ (l, b), (l, t), (r, t), (r, b) ]
 
 -- | Прямоугольник с закруглёнными краями и границей заданной толщины.
 roundedRect

@@ -20,6 +20,89 @@ characterScreen = do
     bgColor = white   -- цвет фона
     fps     = 60      -- кол-во кадров в секунду
 
+
+-----------------------------------------------------------
+-- * Модель экрана выбора персонажа
+-----------------------------------------------------------
+
+-- | Экран выбора персонажа.
+data Screen = Screen
+  { screenPanel   :: Panel Character  -- ^ Панель с настройками.
+  , screenChar    :: Maybe Character  -- ^ Персонаж.
+  , screenImages  :: Images           -- ^ Изображения.
+  }
+
+-- | Инициализировать экран.
+-- При инициализации загружаются все необходимые изображения.
+initScreen :: IO Screen
+initScreen = screenWithImages <$> loadImages
+
+-- | Инициализировать экран с заданными изображениями.
+screenWithImages :: Images -> Screen
+screenWithImages images = Screen
+  { screenPanel   = character images
+  , screenChar    = readPanel (character images)
+  , screenImages  = images
+  }
+
+-- | Обновить панель на экране.
+updateScreenPanel :: (Panel Character -> Panel Character) -> Screen -> Screen
+updateScreenPanel f screen = screen
+  { screenPanel = newPanel
+  , screenChar  = readPanel newPanel
+  }
+  where
+    newPanel = f (screenPanel screen)
+
+--------------------------------------------------------------------------------
+-- * Панель
+--
+-- Измените реализацию 'character', чтобы включать
+-- поля пола, класса, настройки цвета кожи, силы и ловкости.
+--
+-- Для этого реализуйте подпанели 'characterType', 'skinTone' и 'attrs',
+-- типы для которых объявлены ниже.
+--------------------------------------------------------------------------------
+
+-- | Панель настроек персонажа.
+character :: Images -> Panel Character
+character images = mkCharacter
+  <$> selector "Race" (imgRaceName images) allRaces
+  <*> slider "Vitality" 0 10 red
+  <*> slider "Energy"   0 10 blue
+  where
+    mkCharacter race vitality energy = Character
+      { charType     = CharType Male race NoClass
+      , charSkinTone = 0
+      , charAttrs    = Attrs 0 0 vitality energy
+      }
+
+-- | Настройки пола, расы и класса.
+characterType :: Images -> Panel CharType
+-- реализуйте самостоятельно
+-- используйте имена полей "Sex", "Race" и "Class"
+characterType images = pure (CharType Male Human NoClass)
+
+-- | Поле настройки цвета кожи.
+-- Поле может иметь значение от 0 до 1.
+skinTone :: Panel Float
+-- реализуйте самостоятельно
+-- используйте имя поля "Skin tone"
+skinTone = pure 0
+
+-- | Настройки атрибутов персонажа (сила, ловкость, здоровье и энергия).
+-- Сумма значений атрибутов не может превышать 'maxAttrsTotal'.
+attrs :: Panel Attrs
+attrs = constrainPanel ((<= maxAttrsTotal) . attrsTotal) attrsPanel
+  where
+    -- реализуйте самостоятельно
+    -- используйте имена полей "Strength", "Dexterity", "Vitality" и "Energy"
+    attrsPanel = pure (Attrs 0 0 0 0)
+
+-----------------------------------------------------------
+-- * Загрузка изображений
+-----------------------------------------------------------
+
 -- | Изображения.
 data Images = Images
   { imgBackground :: Picture              -- ^ Фон.
@@ -77,81 +160,9 @@ charTypeImage ct = loadJuicyPNG path
   where
     path = "images/" ++ show (charSex ct) ++ show (charRace ct) ++ show (charClass ct) ++ ".png"
 
--- | Экран выбора персонажа.
-data Screen = Screen
-  { screenPanel   :: Panel Character  -- ^ Панель с настройками.
-  , screenChar    :: Maybe Character  -- ^ Персонаж.
-  , screenImages  :: Images           -- ^ Изображения.
-  }
-
--- | Обновить панель на экране.
-updateScreenPanel :: (Panel Character -> Panel Character) -> Screen -> Screen
-updateScreenPanel f screen = screen
-  { screenPanel = newPanel
-  , screenChar  = readPanel newPanel
-  }
-  where
-    newPanel = f (screenPanel screen)
-
--- | Инициализировать экран.
--- При инициализации загружаются все необходимые изображения.
-initScreen :: IO Screen
-initScreen = screenWithImages <$> loadImages
-
--- | Инициализировать экран с заданными изображениями.
-screenWithImages :: Images -> Screen
-screenWithImages images = Screen
-  { screenPanel   = character images
-  , screenChar    = readPanel (character images)
-  , screenImages  = images
-  }
-
---------------------------------------------------------------------------------
--- * Задание
---
--- Измените реализацию 'character', чтобы включать
--- поля пола, класса, настройки цвета кожи, силы и ловкости.
---
--- Для этого реализуйте подпанели 'characterType', 'skinTone' и 'attrs',
--- типы для которых объявлены ниже.
---------------------------------------------------------------------------------
-
--- | Панель настроек персонажа.
-character :: Images -> Panel Character
-character images = mkCharacter
-  <$> selector "Race" (imgRaceName images) allRaces
-  <*> slider "Vitality" 0 10 red
-  <*> slider "Energy"   0 10 blue
-  where
-    mkCharacter race vitality energy = Character
-      { charType     = CharType Male race NoClass
-      , charSkinTone = 0
-      , charAttrs    = Attrs 0 0 vitality energy
-      }
-
--- | Настройки пола, расы и класса.
-characterType :: Images -> Panel CharType
--- реализуйте самостоятельно
--- используйте имена полей "Sex", "Race" и "Class"
-characterType images = pure (CharType Male Human NoClass)
-
--- | Поле настройки цвета кожи.
--- Поле может иметь значение от 0 до 1.
-skinTone :: Panel Float
--- реализуйте самостоятельно
--- используйте имя поля "Skin tone"
-skinTone = pure 0
-
--- | Настройки атрибутов персонажа (сила, ловкость, здоровье и энергия).
--- Сумма значений атрибутов не может превышать 'maxAttrsTotal'.
-attrs :: Panel Attrs
-attrs = constrainPanel ((<= maxAttrsTotal) . attrsTotal) attrsPanel
-  where
-    -- реализуйте самостоятельно
-    -- используйте имена полей "Strength", "Dexterity", "Vitality" и "Energy"
-    attrsPanel = pure (Attrs 0 0 0 0)
-
---------------------------------------------------------------------------------
+-----------------------------------------------------------
+-- * Отрисовка
+-----------------------------------------------------------
 
 -- | Отрисовка экрана выбора персонажа.
 drawScreen :: Screen -> Picture
@@ -179,6 +190,10 @@ raceSkinColorRange Human = (makeColorI 255 219 172 255, makeColorI 141 85 36 255
 raceSkinColorRange Elf   = (makeColorI 219 172 255 255, makeColorI 85 36 141 255)
 raceSkinColorRange Orc   = (makeColorI 219 255 172 255, makeColorI 85 141 36 255)
 
+-----------------------------------------------------------
+-- * Обработка событий
+-----------------------------------------------------------
+
 -- | Обработка событий экрана выбора персонажа.
 handleScreen :: Event -> Screen -> Screen
 handleScreen = updateScreenPanel . handlePanel . untranslateEvent panelOffset
@@ -188,6 +203,10 @@ handleScreen = updateScreenPanel . handlePanel . untranslateEvent panelOffset
 -- эта функция ничего не делает.
 updateScreen :: Float -> Screen -> Screen
 updateScreen _ = id
+
+-----------------------------------------------------------
+-- * Параметры и константы
+-----------------------------------------------------------
 
 -- | Ширина экрана.
 screenWidth :: Num a => a

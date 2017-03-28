@@ -72,6 +72,82 @@ sliderPosition s = x / w
 selectorCurrent :: Selector -> Picture
 selectorCurrent s = selectorPictures s !! selectorIndex s
 
+-----------------------------------------------------------
+-- * Обработка событий
+-----------------------------------------------------------
+
+-- | Обработать события поля.
+handleField :: Event -> Field -> Field
+handleField e (FieldSlider s) = FieldSlider (handleSlider e s)
+handleField e (FieldSelector s) = FieldSelector (handleSelector e s)
+
+-- ** Слайдер
+
+-- | Обработать события слайдера.
+handleSlider :: Event -> Slider -> Slider
+handleSlider e = case e of
+  EventKey (MouseButton LeftButton) Down _ mouse -> selectSlider mouse
+  EventKey (MouseButton LeftButton) Up _ _ -> unselectSlider
+  EventMotion (x, _) -> moveSlider (0.5 + x / sliderLength)
+  _ -> id
+
+-- | Выделить шарик слайдера.
+selectSlider :: Point -> Slider -> Slider
+selectSlider (mx, my) s
+  | onBall    = s { sliderSelected = True }
+  | otherwise = s
+  where
+    onBall = (mx - sliderLength * (x - 0.5))^2 + my^2 <= sliderBallRadius^2
+    x = sliderPosition s
+
+-- | Убрать выделения с шарика слайдера.
+unselectSlider :: Slider -> Slider
+unselectSlider s = s { sliderSelected = False }
+
+-- | Передвинуть шарик слайдера.
+moveSlider :: Float -> Slider -> Slider
+moveSlider x s
+  | sliderSelected s = s { sliderValue = newSliderValue }
+  | otherwise = s
+  where
+    i = sliderMin s + round (x * fromIntegral (sliderMax s - sliderMin s))
+    newSliderValue = max (sliderMin s) (min (sliderMax s) i)
+
+-- ** Элемент выбора
+
+-- | Обработать события элемента выбора.
+handleSelector :: Event -> Selector -> Selector
+handleSelector (EventKey (MouseButton LeftButton) Down _ mouse) = handleSelectorClick mouse
+handleSelector _ = id
+
+-- | Обработать клик мыши.
+handleSelectorClick :: Point -> Selector -> Selector
+handleSelectorClick (mx, my) s
+  | onLeftArrow  = selectPrevious s
+  | onRightArrow = selectNext s
+  | otherwise    = s
+  where
+    w  = selectorArrowWidth
+    sw = selectorWidth
+    onLeftArrow = and
+      [ -w/2 <= my && my <= w/2
+      , -sw/2 <= mx && mx <= -sw/2 + w ]
+    onRightArrow = and
+      [ -w/2 <= my && my <= w/2
+      , sw/2 - w <= mx && mx <= sw/2]
+
+-- | Выбрать предыдущий вариант.
+selectPrevious :: Selector -> Selector
+selectPrevious s = s { selectorIndex = (selectorIndex s - 1) `mod` length (selectorPictures s) }
+
+-- | Выбрать следующий вариант.
+selectNext :: Selector -> Selector
+selectNext s = s { selectorIndex = (selectorIndex s + 1) `mod` length (selectorPictures s) }
+
+-----------------------------------------------------------
+-- * Отрисовка
+-----------------------------------------------------------
+
 -- | Отобразить именованное поле.
 drawNamedField
   :: (String -> Picture)  -- ^ Функция отображения имени поля.
@@ -117,69 +193,7 @@ drawSelector s = pictures
     w = selectorArrowWidth
     dx = selectorWidth / 2 - w
 
--- | Обработать события поля.
-handleField :: Event -> Field -> Field
-handleField e (FieldSlider s) = FieldSlider (handleSlider e s)
-handleField e (FieldSelector s) = FieldSelector (handleSelector e s)
-
--- | Обработать события слайдера.
-handleSlider :: Event -> Slider -> Slider
-handleSlider e = case e of
-  EventKey (MouseButton LeftButton) Down _ mouse -> selectSlider mouse
-  EventKey (MouseButton LeftButton) Up _ _ -> unselectSlider
-  EventMotion (x, _) -> moveSlider (0.5 + x / sliderLength)
-  _ -> id
-
--- | Выделить шарик слайдера.
-selectSlider :: Point -> Slider -> Slider
-selectSlider (mx, my) s
-  | onBall    = s { sliderSelected = True }
-  | otherwise = s
-  where
-    onBall = (mx - sliderLength * (x - 0.5))^2 + my^2 <= sliderBallRadius^2
-    x = sliderPosition s
-
--- | Убрать выделения с шарика слайдера.
-unselectSlider :: Slider -> Slider
-unselectSlider s = s { sliderSelected = False }
-
--- | Передвинуть шарик слайдера.
-moveSlider :: Float -> Slider -> Slider
-moveSlider x s
-  | sliderSelected s = s { sliderValue = newSliderValue }
-  | otherwise = s
-  where
-    i = sliderMin s + round (x * fromIntegral (sliderMax s - sliderMin s))
-    newSliderValue = max (sliderMin s) (min (sliderMax s) i)
-
--- | Обработать события элемента выбора.
-handleSelector :: Event -> Selector -> Selector
-handleSelector (EventKey (MouseButton LeftButton) Down _ mouse) = handleSelectorClick mouse
-handleSelector _ = id
-
--- | Обработать клик мыши.
-handleSelectorClick :: Point -> Selector -> Selector
-handleSelectorClick (mx, my) s
-  | onLeftArrow  = selectPrevious s
-  | onRightArrow = selectNext s
-  | otherwise    = s
-  where
-    w  = selectorArrowWidth
-    sw = selectorWidth
-    onLeftArrow = and
-      [ -w/2 <= my && my <= w/2
-      , -sw/2 <= mx && mx <= -sw/2 + w ]
-    onRightArrow = and
-      [ -w/2 <= my && my <= w/2
-      , sw/2 - w <= mx && mx <= sw/2]
-
--- | Выбрать предыдущий вариант.
-selectPrevious :: Selector -> Selector
-selectPrevious s = s { selectorIndex = (selectorIndex s - 1) `mod` length (selectorPictures s) }
-
--- | Выбрать следующий вариант.
-selectNext :: Selector -> Selector
-selectNext s = s { selectorIndex = (selectorIndex s + 1) `mod` length (selectorPictures s) }
+-- ** Параметры отрисовки полей
 
 -- | Высота одного поля.
 fieldHeight :: Float

@@ -22,13 +22,13 @@ data Class
 
 -- | Персонаж.
 data Character = Character
-  { charType      :: CharType -- ^ Раса, класс.
+  { charType      :: CharType -- ^ Пол, раса, класс.
   , charSkinTone  :: Float    -- ^ Оттенок кожи (темнее/светлее).
   , charAttrs     :: Attrs    -- ^ Атрибуты.
   }
 
 -- | Тип персонажа.
--- Определяется расой и классом.
+-- Определяется полом, расой и классом.
 data CharType = CharType
   { charSex     :: Sex      -- ^ Пол.
   , charRace    :: Race     -- ^ Раса.

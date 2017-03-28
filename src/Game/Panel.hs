@@ -36,6 +36,22 @@ panelHeight panel = fromIntegral n * fieldHeight
 panelFieldNames :: Panel a -> [String]
 panelFieldNames = map fst . panelFields
 
+-- | Добавить ограничение на возможные значения панели.
+constrainPanel :: (a -> Bool) -> Panel a -> Panel a
+constrainPanel p panel = panel { panelValue = newValue }
+  where
+    newValue fs = case panelValue panel fs of
+      Just x | p x -> Just x
+      _ -> Nothing
+
+-- | Обработать каждое поле с его отступом по вертикали.
+mapNamedFieldsWithOffset :: (Float -> NamedField -> a) -> Panel b -> [a]
+mapNamedFieldsWithOffset f = zipWith f [0, -fieldHeight..] . panelFields
+
+-----------------------------------------------------------
+-- * Создание полей
+-----------------------------------------------------------
+
 -- | Создать панель с единственным полем.
 mkField
   :: String             -- ^ Уникальное имя поля.
@@ -68,6 +84,10 @@ selector name drawValue values = mkField name
   (FieldSelector (initSelector (map drawValue values)))
   (fmap (\s -> values !! selectorIndex s) . toSelector)
 
+-----------------------------------------------------------
+-- * Отрисовка
+-----------------------------------------------------------
+
 -- | Отобразить панель.
 drawPanel
   :: (String -> Picture)  -- ^ Функция отрисовки имён полей.
@@ -94,6 +114,10 @@ drawFieldWithOffset
   -> Picture
 drawFieldWithOffset drawFieldName offsetY = translate 0 offsetY . drawNamedField drawFieldName
 
+-----------------------------------------------------------
+-- * Обработка событий
+-----------------------------------------------------------
+
 -- | Обработка событий панели.
 handlePanel :: Event -> Panel a -> Panel a
 handlePanel e panel = case panelValue panel newFields of
@@ -101,18 +125,6 @@ handlePanel e panel = case panelValue panel newFields of
   Just _  -> panel { panelFields = newFields }
   where
     newFields = mapNamedFieldsWithOffset (fmap . handleFieldWithOffset e) panel
-
--- | Обработать каждое поле с его отступом по вертикали.
-mapNamedFieldsWithOffset :: (Float -> NamedField -> a) -> Panel b -> [a]
-mapNamedFieldsWithOffset f = zipWith f [0, -fieldHeight..] . panelFields
-
--- | Добавить ограничение на возможные значения панели.
-constrainPanel :: (a -> Bool) -> Panel a -> Panel a
-constrainPanel p panel = panel { panelValue = newValue }
-  where
-    newValue fs = case panelValue panel fs of
-      Just x | p x -> Just x
-      _ -> Nothing
 
 -- | Обработать событие для одного поля с заданным отступом.
 handleFieldWithOffset :: Event -> Float -> Field -> Field
